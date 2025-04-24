@@ -26,7 +26,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _checkLoginStatus() async {
     final usn = _usnController.text.trim();
-    if (usn.isEmpty || usn.length < 10) { // Assuming USN is like 4MT21AI058 (10 chars)
+    if (usn.isEmpty || usn.length < 10) {
       setState(() {
         _errorMessage = 'Please enter a valid USN';
       });

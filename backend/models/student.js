@@ -1,10 +1,11 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
 
 const studentSchema = new mongoose.Schema({
   firstName: { type: String, required: true },
   middleName: { type: String },
   lastName: { type: String, required: true },
-  studentId: { type: String, unique: true }, // Auto-generated
+  studentId: { type: String, unique: true },
   usn: { type: String, required: true, unique: true },
   dob: { type: Date, required: true },
   tenthPercentage: { type: Number, required: true },
@@ -36,10 +37,18 @@ const studentSchema = new mongoose.Schema({
   phone: { type: String, required: true },
   email: { type: String, required: true, unique: true, match: [/\S+@\S+\.\S+/, 'Please enter a valid email address'] },
   address: { type: String, required: true },
-  password: { type: String },
+  password: { type: String, required: true },
   firstLogin: { type: Boolean, default: true },
   otp: { type: String },
   placements: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Placement' }],
 }, { timestamps: true });
+
+// Hash password before saving
+studentSchema.pre('save', async function(next) {
+  if (this.isModified('password')) {
+    this.password = await bcrypt.hash(this.password, 10);
+  }
+  next();
+});
 
 module.exports = mongoose.model('students', studentSchema);

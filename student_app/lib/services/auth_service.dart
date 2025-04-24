@@ -5,15 +5,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 
 class AuthService {
-  static String get _baseUrl => dotenv.env['API_BASE_URL'] ?? 'http://localhost:3000';
+  static String get _baseUrl => dotenv.env['API_URL'] ?? 'http://192.168.1.100:3000';
 
-  Future<Map<String, dynamic>> checkLoginStatus(String usn) async {
-    print('DEBUG: Checking login status for USN: $usn');
+  Future<Map<String, dynamic>> checkLoginStatus(String usn, {String? token}) async {
+    print('DEBUG: Checking login status for USN: $usn, Token provided: ${token != null}');
     try {
+      final body = {'usn': usn.trim().toUpperCase()};
+      if (token != null) {
+        body['token'] = token;
+      }
+
       final response = await http.post(
         Uri.parse('$_baseUrl/api/students/check-login-status'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'usn': usn.trim().toUpperCase()}),
+        body: jsonEncode(body),
       );
       print('DEBUG: checkLoginStatus response: ${response.statusCode}, ${response.body}');
 
@@ -40,10 +45,12 @@ class AuthService {
 
       if (response.statusCode == 200) {
         final result = jsonDecode(response.body);
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('usn', usn.trim().toUpperCase());
-        await prefs.setString('session_token', result['studentId']);
-        print('DEBUG: Session saved - USN: $usn, Token: ${result['studentId']}');
+        if (!result['firstLogin']) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('usn', usn.trim().toUpperCase());
+          await prefs.setString('session_token', result['token']);
+          print('DEBUG: Session saved - USN: $usn, Token: ${result['token']}');
+        }
         return result;
       } else {
         throw Exception(jsonDecode(response.body)['message'] ?? 'Invalid credentials');
@@ -116,9 +123,22 @@ class AuthService {
     final usn = prefs.getString('usn');
     final sessionToken = prefs.getString('session_token');
     print('DEBUG: Checking session - USN: $usn, Token: $sessionToken');
-    final isLoggedIn = usn != null && sessionToken != null;
-    print('DEBUG: isLoggedIn result: $isLoggedIn');
-    return isLoggedIn;
+
+    if (usn == null || sessionToken == null) {
+      print('DEBUG: No session data found');
+      return false;
+    }
+
+    try {
+      await checkLoginStatus(usn, token: sessionToken);
+      print('DEBUG: Session validated successfully');
+      return true;
+    } catch (e) {
+      print('DEBUG: Session invalid or error: $e');
+      await prefs.remove('usn');
+      await prefs.remove('session_token');
+      return false;
+    }
   }
 
   Future<void> logout() async {
@@ -134,14 +154,17 @@ class AuthService {
     print('DEBUG: Fetching student profile');
     try {
       final prefs = await SharedPreferences.getInstance();
-      final usn = prefs.getString('usn');
-      if (usn == null) {
+      final sessionToken = prefs.getString('session_token');
+      if (sessionToken == null) {
         throw Exception('No user logged in');
       }
 
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/students/profile?usn=$usn'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('$_baseUrl/api/students/profile'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $sessionToken',
+        },
       );
       print('DEBUG: fetchStudentProfile response: ${response.statusCode}, ${response.body}');
 
@@ -159,9 +182,18 @@ class AuthService {
   Future<List<Map<String, dynamic>>> fetchFeaturedPlacements() async {
     print('DEBUG: Fetching featured placements');
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final sessionToken = prefs.getString('session_token');
+      if (sessionToken == null) {
+        throw Exception('No user logged in');
+      }
+
       final response = await http.get(
         Uri.parse('$_baseUrl/api/placements/featured'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $sessionToken',
+        },
       );
       print('DEBUG: fetchFeaturedPlacements response: ${response.statusCode}, ${response.body}');
 
@@ -179,9 +211,18 @@ class AuthService {
   Future<List<Map<String, dynamic>>> fetchOngoingDrives() async {
     print('DEBUG: Fetching ongoing drives');
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final sessionToken = prefs.getString('session_token');
+      if (sessionToken == null) {
+        throw Exception('No user logged in');
+      }
+
       final response = await http.get(
         Uri.parse('$_baseUrl/api/placements/ongoing'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $sessionToken',
+        },
       );
       print('DEBUG: fetchOngoingDrives response: ${response.statusCode}, ${response.body}');
 
@@ -199,9 +240,18 @@ class AuthService {
   Future<List<Map<String, dynamic>>> fetchUpcomingDrives() async {
     print('DEBUG: Fetching upcoming drives');
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final sessionToken = prefs.getString('session_token');
+      if (sessionToken == null) {
+        throw Exception('No user logged in');
+      }
+
       final response = await http.get(
         Uri.parse('$_baseUrl/api/placements/upcoming'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $sessionToken',
+        },
       );
       print('DEBUG: fetchUpcomingDrives response: ${response.statusCode}, ${response.body}');
 
@@ -219,9 +269,18 @@ class AuthService {
   Future<List<Map<String, dynamic>>> fetchCompletedDrives() async {
     print('DEBUG: Fetching completed drives');
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final sessionToken = prefs.getString('session_token');
+      if (sessionToken == null) {
+        throw Exception('No user logged in');
+      }
+
       final response = await http.get(
         Uri.parse('$_baseUrl/api/placements/completed'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $sessionToken',
+        },
       );
       print('DEBUG: fetchCompletedDrives response: ${response.statusCode}, ${response.body}');
 
