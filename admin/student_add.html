@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add Student</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; }
+    input, select { width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; }
+    button { padding: 10px 20px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+    button:hover { background-color: #45a049; }
+    .error { color: red; }
+  </style>
+</head>
+<body>
+  <h2>Add Student</h2>
+  <form id="studentForm">
+    <div class="form-group">
+      <label for="firstName">First Name *</label>
+      <input type="text" id="firstName" name="firstName" required>
+    </div>
+    <div class="form-group">
+      <label for="middleName">Middle Name</label>
+      <input type="text" id="middleName" name="middleName">
+    </div>
+    <div class="form-group">
+      <label for="lastName">Last Name *</label>
+      <input type="text" id="lastName" name="lastName" required>
+    </div>
+    <div class="form-group">
+      <label for="usn">USN *</label>
+      <input type="text" id="usn" name="usn" required>
+    </div>
+    <div class="form-group">
+      <label for="dob">Date of Birth *</label>
+      <input type="date" id="dob" name="dob" required>
+    </div>
+    <div class="form-group">
+      <label for="tenthPercentage">10th Percentage *</label>
+      <input type="number" id="tenthPercentage" name="tenthPercentage" step="0.1" min="0" max="100" required>
+    </div>
+    <div class="form-group">
+      <label for="twelfthPercentage">12th Percentage</label>
+      <input type="number" id="twelfthPercentage" name="twelfthPercentage" step="0.1" min="0" max="100">
+    </div>
+    <div class="form-group">
+      <label for="diplomaPercentage">Diploma Percentage</label>
+      <input type="number" id="diplomaPercentage" name="diplomaPercentage" step="0.1" min="0" max="100">
+    </div>
+    <div class="form-group">
+      <label for="currentCgpa">Current CGPA *</label>
+      <input type="number" id="currentCgpa" name="currentCgpa" step="0.1" min="0" max="10" required>
+    </div>
+    <div class="form-group">
+      <label for="noOfBacklogs">Number of Backlogs *</label>
+      <input type="number" id="noOfBacklogs" name="noOfBacklogs" min="0" required>
+    </div>
+    <div class="form-group">
+      <label for="phone">Phone *</label>
+      <input type="text" id="phone" name="phone" pattern="[0-9]{10}" required>
+    </div>
+    <div class="form-group">
+      <label for="email">Email *</label>
+      <input type="email" id="email" name="email" required>
+    </div>
+    <div class="form-group">
+      <label for="address">Address *</label>
+      <input type="text" id="address" name="address" required>
+    </div>
+    <div class="form-group">
+      <label for="password">Password *</label>
+      <input type="password" id="password" name="password" required>
+    </div>
+    <button type="submit">Add Student</button>
+    <p class="error" id="error"></p>
+  </form>
+  <script>
+    document.getElementById('studentForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData);
+
+      try {
+        const response = await fetch('/api/students/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        const result = await response.json();
+        if (response.ok) {
+          alert(result.message);
+          e.target.reset();
+          document.getElementById('error').textContent = '';
+        } else {
+          document.getElementById('error').textContent = result.message;
+        }
+      } catch (err) {
+        document.getElementById('error').textContent = 'Error: ' + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
