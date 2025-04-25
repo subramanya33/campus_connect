@@ -3,22 +3,11 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const Student = require('../models/student');
-const Counter = require('../models/Counter');
+const { generateOTP } = require('../utils/otp');
+const { getNextStudentId } = require('../utils/studentId');
+
 const router = express.Router();
-
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
-
-const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
-
-const getNextStudentId = async () => {
-  const counter = await Counter.findByIdAndUpdate(
-    'studentId',
-    { $inc: { sequence: 1 } },
-    { new: true, upsert: true }
-  );
-  console.log(`DEBUG: Generated studentId: STU${String(counter.sequence).padStart(3, '0')}`);
-  return `STU${String(counter.sequence).padStart(3, '0')}`;
-};
 
 router.post('/register', async (req, res) => {
   const {
@@ -298,49 +287,6 @@ router.post('/reset-password', async (req, res) => {
   } catch (err) {
     console.error(`DEBUG: Error resetting password: ${err.message}`);
     res.status(500).json({ message: 'Server error', error: err.message });
-  }
-});
-
-const authenticate = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log(`DEBUG: Missing or invalid Authorization header`);
-      return res.status(401).json({ message: 'Authentication required' });
-    }
-
-    const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    const student = await Student.findOne({ 
-      usn: decoded.usn,
-      _id: decoded.studentId
-    });
-
-    if (!student) {
-      console.log(`DEBUG: Invalid token for USN: ${decoded.usn}`);
-      return res.status(401).json({ message: 'Invalid session' });
-    }
-
-    req.student = student;
-    next();
-  } catch (error) {
-    console.error(`DEBUG: Error in authentication: ${error.message}`);
-    res.status(401).json({ message: 'Invalid or expired token' });
-  }
-};
-
-router.get('/profile', authenticate, async (req, res) => {
-  try {
-    const student = req.student;
-    res.status(200).json({
-      usn: student.usn,
-      fullName: `${student.firstName} ${student.lastName}`,
-      email: student.email,
-    });
-  } catch (error) {
-    console.error(`DEBUG: Error fetching profile: ${error.message}`);
-    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 

@@ -1,42 +1,42 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SessionService {
-  static const String _tokenKey = 'jwt_token';
-  static const String _usnKey = 'usn';
-
   // Save token and USN to SharedPreferences
   Future<void> saveSession(String token, String usn) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_tokenKey, token);
-    await prefs.setString(_usnKey, usn);
+    await prefs.setString('jwt_token', token);
+    await prefs.setString('usn', usn);
+    print('DEBUG: Session saved - Token: [HIDDEN], USN: $usn, Token length: ${token.length}');
   }
 
-  // Retrieve token and USN
+  // Retrieve session
   Future<Map<String, String?>> getSession() async {
     final prefs = await SharedPreferences.getInstance();
-    return {
-      'token': prefs.getString(_tokenKey),
-      'usn': prefs.getString(_usnKey),
-    };
+    final token = prefs.getString('jwt_token');
+    final usn = prefs.getString('usn');
+    print('DEBUG: Retrieved session - Token: ${token != null ? '[HIDDEN]' : 'null'}, USN: $usn, Token length: ${token?.length}');
+    return {'token': token, 'usn': usn};
   }
 
   // Clear session
   Future<void> clearSession() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
-    await prefs.remove(_usnKey);
+    await prefs.remove('jwt_token');
+    await prefs.remove('usn');
+    print('DEBUG: Session cleared');
   }
 
-  // Check session with backend
+  // Check session with backend (for app startup)
   Future<Map<String, dynamic>> checkSession() async {
     final session = await getSession();
     final token = session['token'];
     final usn = session['usn'];
 
     if (token == null || usn == null) {
+      print('DEBUG: No session found');
       return {'isLoggedIn': false};
     }
 
@@ -47,6 +47,8 @@ class SessionService {
         body: jsonEncode({'usn': usn, 'token': token}),
       );
 
+      print('DEBUG: Check session response: ${response.statusCode}, ${response.body}');
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return {
@@ -56,10 +58,13 @@ class SessionService {
           'firstLogin': data['firstLogin'],
         };
       } else {
+        print('DEBUG: Session invalid: ${response.body}');
+        await clearSession();
         return {'isLoggedIn': false};
       }
     } catch (e) {
-      print('Session check error: $e');
+      print('DEBUG: Session check error: $e');
+      await clearSession();
       return {'isLoggedIn': false};
     }
   }

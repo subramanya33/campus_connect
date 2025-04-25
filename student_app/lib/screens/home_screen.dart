@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../services/auth_service.dart';
+import '../services/drive_service.dart';
+import '../services/profile_service.dart';
+import '../widgets/custom_drawer.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -11,14 +13,14 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _authService = AuthService();
   List<Map<String, dynamic>> _featuredPlacements = [];
   List<Map<String, dynamic>> _ongoingDrives = [];
   List<Map<String, dynamic>> _upcomingDrives = [];
   List<Map<String, dynamic>> _completedDrives = [];
   bool _isLoading = true;
   String _errorMessage = '';
-  String _fullName = 'Student Name';
+  String _fullName = '';
+  String _usn = '';
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
@@ -31,11 +33,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _fetchStudentProfile() async {
     try {
-      final profile = await _authService.fetchStudentProfile();
+      final profile = await ProfileService.fetchStudentProfile();
       setState(() {
-        _fullName = profile['fullName'] ?? 'Student Name';
+        _fullName = profile['fullName'] ?? '';
+        _usn = profile['usn'] ?? '';
       });
-      print('DEBUG: Student profile loaded - Full Name: $_fullName');
+      print('DEBUG: Student profile loaded - Full Name: $_fullName, USN: $_usn');
     } catch (e) {
       print('DEBUG: Error fetching student profile: $e');
     }
@@ -49,10 +52,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final results = await Future.wait([
-        _authService.fetchFeaturedPlacements(),
-        _authService.fetchOngoingDrives(),
-        _authService.fetchUpcomingDrives(),
-        _authService.fetchCompletedDrives(),
+        DrivesService.fetchFeaturedPlacements(),
+        DrivesService.fetchOngoingDrives(),
+        DrivesService.fetchUpcomingDrives(),
+        DrivesService.fetchCompletedDrives(),
       ]);
 
       setState(() {
@@ -70,26 +73,6 @@ class _HomeScreenState extends State<HomeScreen> {
       });
       print('DEBUG: Error fetching placement data: $e');
     }
-  }
-
-  void _showHelpDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Help'),
-        content: const Text('For assistance, contact support at support@campusconnect.com or call +1-800-123-4567.'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              print('DEBUG: Help dialog closed');
-            },
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-    print('DEBUG: Help dialog opened');
   }
 
   Widget _buildCarousel() {
@@ -120,7 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: CachedNetworkImage(
-                        imageUrl: placement['bannerImage'] ?? 'http://localhost:3000/uploads/placement_banners/default.jpg',
+                        imageUrl: placement['bannerImage'] ?? 'http://192.168.1.100:3000/uploads/placement_banners/default.jpg',
                         fit: BoxFit.cover,
                         placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
                         errorWidget: (context, url, error) => const Icon(Icons.error),
@@ -150,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       child: ListTile(
         leading: CachedNetworkImage(
-          imageUrl: company['logo'] ?? 'http://localhost:3000/uploads/logos/default.png',
+          imageUrl: company['logo'] ?? 'http://192.168.1.100:3000/uploads/logos/default.png',
           width: 50,
           height: 50,
           placeholder: (context, url) => const CircularProgressIndicator(),
@@ -224,111 +207,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         title: const Text('Campus Connect', style: TextStyle(color: Colors.white)),
       ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: const BoxDecoration(
-                color: Colors.indigo,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CachedNetworkImage(
-                    imageUrl: 'http://localhost:3000/uploads/profile_pics/4MT21AI058.jpg',
-                    width: 60,
-                    height: 60,
-                    placeholder: (context, url) => const CircularProgressIndicator(),
-                    errorWidget: (context, url, error) => const Icon(Icons.person, size: 60, color: Colors.white),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _fullName,
-                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const Text(
-                    '4MT21AI058',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.home),
-              title: const Text('Home'),
-              onTap: () {
-                Navigator.pop(context);
-                print('DEBUG: Drawer - Home tapped');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('Profile'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/profile');
-                print('DEBUG: Drawer - Profile tapped');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.description),
-              title: const Text('Resume Builder'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/resume_builder');
-                print('DEBUG: Drawer - Resume Builder tapped');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.question_answer),
-              title: const Text('Question Banks'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/question_banks');
-                print('DEBUG: Drawer - Question Banks tapped');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.live_tv),
-              title: const Text('Livestream'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/livestream');
-                print('DEBUG: Drawer - Livestream tapped');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.notifications),
-              title: const Text('Notifications'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/notifications');
-                print('DEBUG: Drawer - Notifications tapped');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.help),
-              title: const Text('Help'),
-              onTap: () {
-                Navigator.pop(context);
-                _showHelpDialog();
-                print('DEBUG: Drawer - Help tapped');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Logout'),
-              onTap: () async {
-                print('DEBUG: Drawer - Logout initiated');
-                await _authService.logout();
-                print('DEBUG: Session cleared, navigating to LoginScreen');
-                Navigator.pushReplacementNamed(context, '/login');
-              },
-            ),
-          ],
-        ),
-      ),
+      drawer: CustomDrawer(fullName: _fullName, usn: _usn),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

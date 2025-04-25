@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:intl/intl.dart';
+import '../services/profile_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -29,7 +31,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      final profile = await _authService.fetchStudentProfile();
+      final profile = await ProfileService.fetchStudentProfile();
       setState(() {
         _profile = profile;
         _isLoading = false;
@@ -41,6 +43,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _isLoading = false;
       });
       print('DEBUG: Error fetching profile: $e');
+    }
+  }
+
+  String _formatDate(String? date) {
+    if (date == null) return 'N/A';
+    try {
+      final parsedDate = DateTime.parse(date);
+      return DateFormat('dd MMM yyyy').format(parsedDate);
+    } catch (e) {
+      return 'N/A';
     }
   }
 
@@ -65,7 +77,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Personal Info Card
                       Card(
                         elevation: 4,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -74,7 +88,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: Column(
                             children: [
                               CachedNetworkImage(
-                                imageUrl: 'http://localhost:3000/uploads/profile_pics/${_profile!['usn']}.jpg',
+                                imageUrl: 'http://192.168.1.100:3000/uploads/profile_pics/${_profile!['usn']}.jpg',
                                 width: 100,
                                 height: 100,
                                 placeholder: (context, url) => const CircularProgressIndicator(),
@@ -87,12 +101,93 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                _profile!['usn'] ?? 'Unknown',
+                                'USN: ${_profile!['usn'] ?? 'Unknown'}',
                                 style: const TextStyle(fontSize: 16, color: Colors.grey),
+                              ),
+                              Text(
+                                'Student ID: ${_profile!['studentId'] ?? 'Unknown'}',
+                                style: const TextStyle(fontSize: 16, color: Colors.grey),
+                              ),
+                              Text(
+                                'Email: ${_profile!['email'] ?? 'Unknown'}',
+                                style: const TextStyle(fontSize: 16, color: Colors.grey),
+                              ),
+                              Text(
+                                'Phone: ${_profile!['phone'] ?? 'Unknown'}',
+                                style: const TextStyle(fontSize: 16, color: Colors.grey),
+                              ),
+                              Text(
+                                'Address: ${_profile!['address'] ?? 'Unknown'}',
+                                style: const TextStyle(fontSize: 16, color: Colors.grey),
+                              ),
+                              Text(
+                                'DOB: ${_formatDate(_profile!['dob'])}',
+                                style: const TextStyle(fontSize: 16, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Academic Details Card
+                      Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Academic Details',
+                                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.indigo),
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                _profile!['email'] ?? 'Unknown',
+                                '10th Percentage: ${_profile!['tenthPercentage']?.toString() ?? 'N/A'}%',
+                                style: const TextStyle(fontSize: 16, color: Colors.grey),
+                              ),
+                              Text(
+                                '12th Percentage: ${_profile!['twelfthPercentage']?.toString() ?? 'N/A'}%',
+                                style: const TextStyle(fontSize: 16, color: Colors.grey),
+                              ),
+                              Text(
+                                'Diploma Percentage: ${_profile!['diplomaPercentage']?.toString() ?? 'N/A'}%',
+                                style: const TextStyle(fontSize: 16, color: Colors.grey),
+                              ),
+                              Text(
+                                'Current CGPA: ${_profile!['currentCgpa']?.toString() ?? 'N/A'}',
+                                style: const TextStyle(fontSize: 16, color: Colors.grey),
+                              ),
+                              Text(
+                                'No. of Backlogs: ${_profile!['noOfBacklogs']?.toString() ?? 'N/A'}',
+                                style: const TextStyle(fontSize: 16, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Placement Status Card
+                      Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Placement Status',
+                                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.indigo),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Placed: ${_profile!['placedStatus'] == true ? 'Yes' : 'No'}',
+                                style: const TextStyle(fontSize: 16, color: Colors.grey),
+                              ),
+                              Text(
+                                'Applied Placements: ${_profile!['placements']?.length ?? 0}',
                                 style: const TextStyle(fontSize: 16, color: Colors.grey),
                               ),
                             ],
