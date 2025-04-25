@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:student_app/screens/profile_screen.dart';
+import 'services/auth_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/reset_password.dart';
-import 'screens/profile_screen.dart';
-import 'services/auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,63 +15,83 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  Future<String> _getInitialRoute() async {
-    final authService = AuthService();
-    final isLoggedIn = await authService.isLoggedIn();
-    print('DEBUG: Initial route check - isLoggedIn: $isLoggedIn');
-    return isLoggedIn ? '/home' : '/login';
-  }
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Campus Connect',
-      theme: ThemeData(
-        primarySwatch: Colors.indigo,
-        useMaterial3: true,
-      ),
-      initialRoute: '/login', // Fallback, overridden by homeBuilder
+      theme: ThemeData(primarySwatch: Colors.blue),
+      home: const SplashScreen(),
       routes: {
         '/login': (context) => const LoginScreen(),
         '/home': (context) => const HomeScreen(),
         '/profile': (context) => const ProfileScreen(),
-        '/resume_builder': (context) => const Placeholder(),
-        '/question_banks': (context) => const Placeholder(),
-        '/livestream': (context) => const Placeholder(),
-        '/notifications': (context) => const Placeholder(),
+        '/reset-password': (context) => ResetPasswordScreen(
+              usn: ModalRoute.of(context)!.settings.arguments is Map
+                  ? (ModalRoute.of(context)!.settings.arguments as Map)['usn'] ?? ''
+                  : '',
+              isFirstLogin: ModalRoute.of(context)!.settings.arguments is Map
+                  ? (ModalRoute.of(context)!.settings.arguments as Map)['isFirstLogin'] ?? false
+                  : false,
+            ),
       },
-      onGenerateRoute: (settings) {
-        if (settings.name == '/reset_password') {
-          final args = settings.arguments as Map<String, dynamic>?;
-          return MaterialPageRoute(
-            builder: (context) => ResetPasswordScreen(
-              usn: args?['usn'] ?? '',
-              isFirstLogin: args?['isFirstLogin'] ?? false,
+    );
+  }
+}
+
+class SplashScreen extends StatelessWidget {
+  const SplashScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: AuthService().checkSession(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('Campus Connect', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  SizedBox(height: 20),
+                  CircularProgressIndicator(),
+                ],
+              ),
             ),
           );
         }
-        return null;
-      },
-      home: FutureBuilder<String>(
-        future: _getInitialRoute(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+
+        final sessionData = snapshot.data ?? {'isLoggedIn': false};
+        final isLoggedIn = sessionData['isLoggedIn'] as bool;
+        final firstLogin = sessionData['firstLogin'] as bool?;
+        final usn = sessionData['usn'] as String?;
+
+        debugPrint('DEBUG: SplashScreen - isLoggedIn: $isLoggedIn, firstLogin: $firstLogin, usn: $usn');
+
+        if (isLoggedIn) {
+          if (firstLogin == true && usn != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              Navigator.pushReplacementNamed(
+                context,
+                '/reset-password',
+                arguments: {'usn': usn, 'isFirstLogin': true},
+              );
+            });
+          } else {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              Navigator.pushReplacementNamed(context, '/home');
+            });
           }
-          final initialRoute = snapshot.data ?? '/login';
-          print('DEBUG: Setting initial route to $initialRoute');
-          return Navigator(
-            onGenerateRoute: (settings) {
-              if (settings.name == initialRoute) {
-                return MaterialPageRoute(
-                  builder: (context) => initialRoute == '/home' ? const HomeScreen() : const LoginScreen(),
-                );
-              }
-              return null;
-            },
-          );
-        },
-      ),
+        } else {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Navigator.pushReplacementNamed(context, '/login');
+          });
+        }
+
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
+      },
     );
   }
 }

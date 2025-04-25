@@ -25,33 +25,33 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   void initState() {
     super.initState();
     _emailController.text = '${widget.usn.toLowerCase()}@mite.ac.in';
-    debugPrint('DEBUG: ResetPasswordScreen initialized with USN: ${widget.usn}, isFirstLogin: ${widget.isFirstLogin}');
+    print('DEBUG: ResetPasswordScreen initialized with USN: ${widget.usn}, isFirstLogin: ${widget.isFirstLogin}');
   }
 
   Future<void> _sendOtp() async {
     final email = _emailController.text.trim().toLowerCase();
     final expectedEmail = '${widget.usn.toLowerCase()}@mite.ac.in';
-    debugPrint('DEBUG: Sending OTP for USN: ${widget.usn}, Entered Email: $email, Expected Email: $expectedEmail');
+    print('DEBUG: Sending OTP for USN: ${widget.usn}, Entered Email: $email, Expected Email: $expectedEmail');
 
     if (email.isEmpty) {
       setState(() {
         _errorMessage = 'Please enter institute email';
       });
-      debugPrint('DEBUG: Email field empty');
+      print('DEBUG: Email field empty');
       return;
     }
     if (!RegExp(r'^[a-zA-Z0-9]+@mite\.ac\.in$').hasMatch(email)) {
       setState(() {
         _errorMessage = 'Email must be in the format <usn>@mite.ac.in';
       });
-      debugPrint('DEBUG: Invalid email format: $email');
+      print('DEBUG: Invalid email format: $email');
       return;
     }
     if (email != expectedEmail) {
       setState(() {
         _errorMessage = 'Email must be ${widget.usn.toLowerCase()}@mite.ac.in';
       });
-      debugPrint('DEBUG: Email mismatch. Entered: $email, Expected: $expectedEmail');
+      print('DEBUG: Email mismatch. Entered: $email, Expected: $expectedEmail');
       return;
     }
 
@@ -65,15 +65,17 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       setState(() {
         _otpSent = true;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('OTP sent to $email')),
-      );
-      debugPrint('DEBUG: OTP sent successfully to $email');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('OTP sent to $email')),
+        );
+      }
+      print('DEBUG: OTP sent successfully to $email');
     } catch (e) {
       setState(() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
-      debugPrint('DEBUG: Error sending OTP: $e');
+      print('DEBUG: Error sending OTP: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -85,20 +87,27 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     final otp = _otpController.text.trim();
     final newPassword = _newPasswordController.text.trim();
     final confirmPassword = _confirmPasswordController.text.trim();
-    debugPrint('DEBUG: Verifying OTP: $otp, New Password: [HIDDEN], Confirm Password: [HIDDEN] for USN: ${widget.usn}');
+    print('DEBUG: Verifying OTP: $otp, New Password: [HIDDEN], Confirm Password: [HIDDEN] for USN: ${widget.usn}');
 
     if (otp.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
       setState(() {
         _errorMessage = 'Please enter OTP, new password, and confirm password';
       });
-      debugPrint('DEBUG: OTP, new password, or confirm password empty');
+      print('DEBUG: OTP, new password, or confirm password empty');
+      return;
+    }
+    if (newPassword.length < 8) {
+      setState(() {
+        _errorMessage = 'Password must be at least 8 characters long';
+      });
+      print('DEBUG: Password too short');
       return;
     }
     if (newPassword != confirmPassword) {
       setState(() {
         _errorMessage = 'Passwords do not match';
       });
-      debugPrint('DEBUG: Password mismatch');
+      print('DEBUG: Password mismatch');
       return;
     }
 
@@ -109,20 +118,22 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     try {
       await _authService.verifyOtp(widget.usn, otp);
-      debugPrint('DEBUG: OTP verified for USN: ${widget.usn}');
+      print('DEBUG: OTP verified for USN: ${widget.usn}');
       await _authService.resetPassword(widget.usn, newPassword);
-      debugPrint('DEBUG: Password reset for USN: ${widget.usn}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(widget.isFirstLogin ? 'Password set successfully!' : 'Password reset successfully!'),
-        ),
-      );
-      Navigator.pushReplacementNamed(context, '/login');
+      print('DEBUG: Password reset for USN: ${widget.usn}');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.isFirstLogin ? 'Password set successfully!' : 'Password reset successfully!'),
+          ),
+        );
+        Navigator.pushReplacementNamed(context, '/login');
+      }
     } catch (e) {
       setState(() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
-      debugPrint('DEBUG: Error verifying/resetting: $e');
+      print('DEBUG: Error verifying/resetting: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -174,6 +185,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                       prefixIcon: Icon(Icons.email, color: themeColor),
                     ),
+                    keyboardType: TextInputType.emailAddress,
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
@@ -197,6 +209,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                       prefixIcon: Icon(widget.isFirstLogin ? Icons.star : Icons.lock, color: themeColor),
                     ),
+                    keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 16),
                   TextField(
@@ -250,7 +263,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     _otpController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
-    debugPrint('DEBUG: ResetPasswordScreen disposed');
+    print('DEBUG: ResetPasswordScreen disposed');
     super.dispose();
   }
 }

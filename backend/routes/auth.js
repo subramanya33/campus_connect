@@ -6,7 +6,7 @@ const Student = require('../models/student');
 const Counter = require('../models/Counter');
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret'; // Store in .env
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -20,7 +20,6 @@ const getNextStudentId = async () => {
   return `STU${String(counter.sequence).padStart(3, '0')}`;
 };
 
-// Register endpoint
 router.post('/register', async (req, res) => {
   const {
     firstName, middleName, lastName, usn, dob, tenthPercentage,
@@ -79,7 +78,6 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Check login status endpoint
 router.post('/check-login-status', async (req, res) => {
   const { usn, token } = req.body;
   console.log(`DEBUG: Checking login status for USN: ${usn}, Token provided: ${token ? 'Yes' : 'No'}`);
@@ -97,7 +95,6 @@ router.post('/check-login-status', async (req, res) => {
     }
 
     if (token) {
-      // Validate token if provided
       try {
         const decoded = jwt.verify(token, JWT_SECRET);
         if (decoded.usn !== student.usn || decoded.studentId !== student._id.toString()) {
@@ -122,12 +119,16 @@ router.post('/check-login-status', async (req, res) => {
   }
 });
 
-// Login endpoint
 router.post('/login', async (req, res) => {
   const { usn, password } = req.body;
   console.log(`DEBUG: Login attempt for USN: ${usn}, Password provided: ${password ? 'Yes' : 'No'}`);
 
   try {
+    if (!usn || !password) {
+      console.log(`DEBUG: Missing USN or password in login request`);
+      return res.status(400).json({ message: 'USN and password are required' });
+    }
+
     const student = await Student.findOne({ usn: usn.toUpperCase() });
     if (!student) {
       console.log(`DEBUG: Student not found for USN: ${usn}`);
@@ -170,7 +171,6 @@ router.post('/login', async (req, res) => {
     await student.save();
     console.log(`DEBUG: Login successful, firstLogin set to false for USN: ${usn}`);
 
-    // Generate JWT
     const token = jwt.sign(
       { usn: student.usn, studentId: student._id },
       JWT_SECRET,
@@ -190,12 +190,16 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Forgot password endpoint
 router.post('/forgot-password', async (req, res) => {
   const { usn, email } = req.body;
   console.log(`DEBUG: Forgot password request for USN: ${usn}, Email: ${email}`);
 
   try {
+    if (!usn || !email) {
+      console.log(`DEBUG: Missing USN or email in forgot-password request`);
+      return res.status(400).json({ message: 'USN and email are required' });
+    }
+
     const student = await Student.findOne({ usn: usn.toUpperCase() });
     if (!student) {
       console.log(`DEBUG: Student not found for USN: ${usn}`);
@@ -237,12 +241,16 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
-// Verify OTP endpoint
 router.post('/verify-otp', async (req, res) => {
   const { usn, otp } = req.body;
   console.log(`DEBUG: Verifying OTP for USN: ${usn}, OTP: ${otp}`);
 
   try {
+    if (!usn || !otp) {
+      console.log(`DEBUG: Missing USN or OTP in verify-otp request`);
+      return res.status(400).json({ message: 'USN and OTP are required' });
+    }
+
     const student = await Student.findOne({ usn: usn.toUpperCase() });
     if (!student) {
       console.log(`DEBUG: Student not found for USN: ${usn}`);
@@ -265,12 +273,16 @@ router.post('/verify-otp', async (req, res) => {
   }
 });
 
-// Reset password endpoint
 router.post('/reset-password', async (req, res) => {
   const { usn, newPassword } = req.body;
   console.log(`DEBUG: Reset password request for USN: ${usn}`);
 
   try {
+    if (!usn || !newPassword) {
+      console.log(`DEBUG: Missing USN or newPassword in reset-password request`);
+      return res.status(400).json({ message: 'USN and new password are required' });
+    }
+
     const student = await Student.findOne({ usn: usn.toUpperCase() });
     if (!student) {
       console.log(`DEBUG: Student not found for USN: ${usn}`);
@@ -289,7 +301,6 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
-// Authentication middleware
 const authenticate = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -319,7 +330,6 @@ const authenticate = async (req, res, next) => {
   }
 };
 
-// Profile endpoint
 router.get('/profile', authenticate, async (req, res) => {
   try {
     const student = req.student;
@@ -333,3 +343,5 @@ router.get('/profile', authenticate, async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
+
+module.exports = router;

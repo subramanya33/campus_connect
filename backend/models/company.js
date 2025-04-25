@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 
-// Define the Company schema
 const companySchema = new mongoose.Schema({
   name: {
     type: String,
@@ -26,15 +25,22 @@ const companySchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  bannerImage: {
+    type: String,
+    required: true // Store full URL, e.g., http://192.168.1.100:3000/uploads/placement_banners/google.jpg
+  },
+  logo: {
+    type: String,
+    required: true // Store full URL, e.g., http://192.168.1.100:3000/uploads/logos/google.png
+  },
   studentsApplied: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Student' // Corrected from 'students' to 'Student'
+    ref: 'Student'
   }],
 }, {
   timestamps: true
 });
 
-// Virtual field to calculate number of students applied
 companySchema.virtual('studentsAppliedCount').get(function() {
   return this.studentsApplied.length;
 });

@@ -1,297 +1,415 @@
 import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/material.dart';
 
 class AuthService {
-  static String get _baseUrl => dotenv.env['API_URL'] ?? 'http://192.168.1.100:3000';
-
-  Future<Map<String, dynamic>> checkLoginStatus(String usn, {String? token}) async {
-    print('DEBUG: Checking login status for USN: $usn, Token provided: ${token != null}');
-    try {
-      final body = {'usn': usn.trim().toUpperCase()};
-      if (token != null) {
-        body['token'] = token;
-      }
-
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/students/check-login-status'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      );
-      print('DEBUG: checkLoginStatus response: ${response.statusCode}, ${response.body}');
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to check login status');
-      }
-    } catch (e) {
-      print('DEBUG: Error in checkLoginStatus: $e');
-      throw Exception('Error checking login status: $e');
-    }
-  }
-
-  Future<Map<String, dynamic>> login(String usn, String password) async {
-    print('DEBUG: Login attempt for USN: $usn, Password: [HIDDEN]');
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/students/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'usn': usn.trim().toUpperCase(), 'password': password.trim()}),
-      );
-      print('DEBUG: login response: ${response.statusCode}, ${response.body}');
-
-      if (response.statusCode == 200) {
-        final result = jsonDecode(response.body);
-        if (!result['firstLogin']) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('usn', usn.trim().toUpperCase());
-          await prefs.setString('session_token', result['token']);
-          print('DEBUG: Session saved - USN: $usn, Token: ${result['token']}');
-        }
-        return result;
-      } else {
-        throw Exception(jsonDecode(response.body)['message'] ?? 'Invalid credentials');
-      }
-    } catch (e) {
-      print('DEBUG: Error in login: $e');
-      throw Exception('Error logging in: $e');
-    }
-  }
-
-  Future<void> requestOtp(String usn, String email) async {
-    print('DEBUG: Requesting OTP for USN: $usn, Email: $email');
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/students/forgot-password'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'usn': usn.trim().toUpperCase(), 'email': email.trim().toLowerCase()}),
-      );
-      print('DEBUG: requestOtp response: ${response.statusCode}, ${response.body}');
-
-      if (response.statusCode != 200) {
-        throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to send OTP');
-      }
-    } catch (e) {
-      print('DEBUG: Error in requestOtp: $e');
-      throw Exception('Error requesting OTP: $e');
-    }
-  }
-
-  Future<void> verifyOtp(String usn, String otp) async {
-    print('DEBUG: Verifying OTP for USN: $usn, OTP: $otp');
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/students/verify-otp'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'usn': usn.trim().toUpperCase(), 'otp': otp.trim()}),
-      );
-      print('DEBUG: verifyOtp response: ${response.statusCode}, ${response.body}');
-
-      if (response.statusCode != 200) {
-        throw Exception(jsonDecode(response.body)['message'] ?? 'Invalid OTP');
-      }
-    } catch (e) {
-      print('DEBUG: Error in verifyOtp: $e');
-      throw Exception('Error verifying OTP: $e');
-    }
-  }
-
-  Future<void> resetPassword(String usn, String newPassword) async {
-    print('DEBUG: Resetting password for USN: $usn');
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/students/reset-password'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'usn': usn.trim().toUpperCase(), 'newPassword': newPassword}),
-      );
-      print('DEBUG: resetPassword response: ${response.statusCode}, ${response.body}');
-
-      if (response.statusCode != 200) {
-        throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to reset password');
-      }
-    } catch (e) {
-      print('DEBUG: Error in resetPassword: $e');
-      throw Exception('Error resetting password: $e');
-    }
-  }
-
-  Future<bool> isLoggedIn() async {
+  // Save token and USN to SharedPreferences
+  Future<void> _saveSession(String token, String usn) async {
     final prefs = await SharedPreferences.getInstance();
-    final usn = prefs.getString('usn');
-    final sessionToken = prefs.getString('session_token');
-    print('DEBUG: Checking session - USN: $usn, Token: $sessionToken');
-
-    if (usn == null || sessionToken == null) {
-      print('DEBUG: No session data found');
-      return false;
-    }
-
-    try {
-      await checkLoginStatus(usn, token: sessionToken);
-      print('DEBUG: Session validated successfully');
-      return true;
-    } catch (e) {
-      print('DEBUG: Session invalid or error: $e');
-      await prefs.remove('usn');
-      await prefs.remove('session_token');
-      return false;
-    }
+    await prefs.setString('jwt_token', token);
+    await prefs.setString('usn', usn);
+    print('DEBUG: Session saved - Token: [HIDDEN], USN: $usn, Token length: ${token.length}');
   }
 
-  Future<void> logout() async {
+  // Retrieve session
+  Future<Map<String, String?>> _getSession() async {
     final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
     final usn = prefs.getString('usn');
-    print('DEBUG: Logging out USN: $usn');
+    print('DEBUG: Retrieved session - Token: ${token != null ? '[HIDDEN]' : 'null'}, USN: $usn, Token length: ${token?.length}');
+    return {'token': token, 'usn': usn};
+  }
+
+  // Clear session
+  Future<void> _clearSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('jwt_token');
     await prefs.remove('usn');
-    await prefs.remove('session_token');
     print('DEBUG: Session cleared');
   }
 
-  Future<Map<String, dynamic>> fetchStudentProfile() async {
-    print('DEBUG: Fetching student profile');
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final sessionToken = prefs.getString('session_token');
-      if (sessionToken == null) {
-        throw Exception('No user logged in');
-      }
+  // Check session with backend (for app startup)
+  Future<Map<String, dynamic>> checkSession() async {
+    final session = await _getSession();
+    final token = session['token'];
+    final usn = session['usn'];
 
+    if (token == null || usn == null) {
+      print('DEBUG: No session found');
+      return {'isLoggedIn': false};
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('${dotenv.env['API_URL']}/api/students/check-login-status'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'usn': usn, 'token': token}),
+      );
+
+      print('DEBUG: Check session response: ${response.statusCode}, ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'isLoggedIn': true,
+          'usn': data['usn'],
+          'studentId': data['studentId'],
+          'firstLogin': data['firstLogin'],
+        };
+      } else {
+        print('DEBUG: Session invalid: ${response.body}');
+        await _clearSession();
+        return {'isLoggedIn': false};
+      }
+    } catch (e) {
+      print('DEBUG: Session check error: $e');
+      await _clearSession();
+      return {'isLoggedIn': false};
+    }
+  }
+
+  // Check login status (for LoginScreen)
+  Future<Map<String, dynamic>> checkLoginStatus(String usn) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${dotenv.env['API_URL']}/api/students/check-login-status'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'usn': usn}),
+      );
+
+      print('DEBUG: Check login status response: ${response.statusCode}, ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'firstLogin': data['firstLogin'] ?? false,
+        };
+      } else {
+        throw Exception(jsonDecode(response.body)['message']);
+      }
+    } catch (e) {
+      print('DEBUG: Check login status error: $e');
+      throw Exception(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  // Register
+  Future<void> register({
+    required String firstName,
+    required String lastName,
+    String? middleName,
+    required String usn,
+    required String dob,
+    required double tenthPercentage,
+    double? twelfthPercentage,
+    double? diplomaPercentage,
+    required double currentCgpa,
+    required int noOfBacklogs,
+    required String phone,
+    required String email,
+    required String address,
+    required String password,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${dotenv.env['API_URL']}/api/students/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'firstName': firstName,
+          'middleName': middleName,
+          'lastName': lastName,
+          'usn': usn,
+          'dob': dob,
+          'tenthPercentage': tenthPercentage,
+          'twelfthPercentage': twelfthPercentage,
+          'diplomaPercentage': diplomaPercentage,
+          'currentCgpa': currentCgpa,
+          'noOfBacklogs': noOfBacklogs,
+          'phone': phone,
+          'email': email,
+          'address': address,
+          'password': password,
+        }),
+      );
+
+      print('DEBUG: Register response: ${response.statusCode}, ${response.body}');
+
+      if (response.statusCode == 201) {
+        return;
+      } else {
+        throw Exception(jsonDecode(response.body)['message']);
+      }
+    } catch (e) {
+      print('DEBUG: Register error: $e');
+      throw Exception(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  // Login
+  Future<void> login(String usn, String password) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${dotenv.env['API_URL']}/api/students/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'usn': usn, 'password': password}),
+      );
+
+      print('DEBUG: Login response: ${response.statusCode}, ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        await _saveSession(data['token'], data['usn']);
+        return;
+      } else {
+        throw Exception(jsonDecode(response.body)['message']);
+      }
+    } catch (e) {
+      print('DEBUG: Login error: $e');
+      throw Exception(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  // Request OTP
+  Future<void> requestOtp(String usn, String email) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${dotenv.env['API_URL']}/api/students/forgot-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'usn': usn, 'email': email}),
+      );
+
+      print('DEBUG: Request OTP response: ${response.statusCode}, ${response.body}');
+
+      if (response.statusCode == 200) {
+        return;
+      } else {
+        throw Exception(jsonDecode(response.body)['message']);
+      }
+    } catch (e) {
+      print('DEBUG: Request OTP error: $e');
+      throw Exception(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  // Verify OTP
+  Future<void> verifyOtp(String usn, String otp) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${dotenv.env['API_URL']}/api/students/verify-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'usn': usn, 'otp': otp}),
+      );
+
+      print('DEBUG: Verify OTP response: ${response.statusCode}, ${response.body}');
+
+      if (response.statusCode == 200) {
+        return;
+      } else {
+        throw Exception(jsonDecode(response.body)['message']);
+      }
+    } catch (e) {
+      print('DEBUG: Verify OTP error: $e');
+      throw Exception(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  // Reset Password
+  Future<void> resetPassword(String usn, String newPassword) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${dotenv.env['API_URL']}/api/students/reset-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'usn': usn, 'newPassword': newPassword}),
+      );
+
+      print('DEBUG: Reset password response: ${response.statusCode}, ${response.body}');
+
+      if (response.statusCode == 200) {
+        return;
+      } else {
+        throw Exception(jsonDecode(response.body)['message']);
+      }
+    } catch (e) {
+      print('DEBUG: Reset password error: $e');
+      throw Exception(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  // Fetch Student Profile
+  Future<Map<String, dynamic>> fetchStudentProfile() async {
+    final session = await _getSession();
+    final token = session['token'];
+    final usn = session['usn'];
+
+    if (token == null || usn == null) {
+      print('DEBUG: No session for profile fetch');
+      throw Exception('Not logged in');
+    }
+
+    try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/students/profile'),
+        Uri.parse('${dotenv.env['API_URL']}/api/students/profile'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $sessionToken',
+          'Authorization': 'Bearer $token',
         },
       );
-      print('DEBUG: fetchStudentProfile response: ${response.statusCode}, ${response.body}');
+
+      print('DEBUG: Profile fetch response: ${response.statusCode}, ${response.body}');
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to fetch student profile');
+        print('DEBUG: Profile fetch failed: ${response.body}');
+        await _clearSession();
+        throw Exception(jsonDecode(response.body)['message']);
       }
     } catch (e) {
-      print('DEBUG: Error in fetchStudentProfile: $e');
-      throw Exception('Error fetching student profile: $e');
+      print('DEBUG: Profile fetch error: $e');
+      throw Exception(e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
+  // Fetch Featured Placements
   Future<List<Map<String, dynamic>>> fetchFeaturedPlacements() async {
-    print('DEBUG: Fetching featured placements');
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final sessionToken = prefs.getString('session_token');
-      if (sessionToken == null) {
-        throw Exception('No user logged in');
-      }
+    final session = await _getSession();
+    final token = session['token'];
 
+    if (token == null) {
+      print('DEBUG: No session for featured placements');
+      throw Exception('Not logged in');
+    }
+
+    try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/placements/featured'),
+        Uri.parse('${dotenv.env['API_URL']}/api/placements/featured'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $sessionToken',
+          'Authorization': 'Bearer $token',
         },
       );
-      print('DEBUG: fetchFeaturedPlacements response: ${response.statusCode}, ${response.body}');
+
+      print('DEBUG: Featured placements response: ${response.statusCode}, ${response.body}');
 
       if (response.statusCode == 200) {
         return List<Map<String, dynamic>>.from(jsonDecode(response.body));
       } else {
-        throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to fetch featured placements');
+        print('DEBUG: Featured placements failed: ${response.body}');
+        await _clearSession();
+        throw Exception(jsonDecode(response.body)['message']);
       }
     } catch (e) {
-      print('DEBUG: Error in fetchFeaturedPlacements: $e');
-      throw Exception('Error fetching featured placements: $e');
+      print('DEBUG: Featured placements error: $e');
+      throw Exception(e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
+  // Fetch Ongoing Drives
   Future<List<Map<String, dynamic>>> fetchOngoingDrives() async {
-    print('DEBUG: Fetching ongoing drives');
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final sessionToken = prefs.getString('session_token');
-      if (sessionToken == null) {
-        throw Exception('No user logged in');
-      }
+    final session = await _getSession();
+    final token = session['token'];
 
+    if (token == null) {
+      print('DEBUG: No session for ongoing drives');
+      throw Exception('Not logged in');
+    }
+
+    try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/placements/ongoing'),
+        Uri.parse('${dotenv.env['API_URL']}/api/placements/ongoing'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $sessionToken',
+          'Authorization': 'Bearer $token',
         },
       );
-      print('DEBUG: fetchOngoingDrives response: ${response.statusCode}, ${response.body}');
+
+      print('DEBUG: Ongoing drives response: ${response.statusCode}, ${response.body}');
 
       if (response.statusCode == 200) {
         return List<Map<String, dynamic>>.from(jsonDecode(response.body));
       } else {
-        throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to fetch ongoing drives');
+        print('DEBUG: Ongoing drives failed: ${response.body}');
+        await _clearSession();
+        throw Exception(jsonDecode(response.body)['message']);
       }
     } catch (e) {
-      print('DEBUG: Error in fetchOngoingDrives: $e');
-      throw Exception('Error fetching ongoing drives: $e');
+      print('DEBUG: Ongoing drives error: $e');
+      throw Exception(e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
+  // Fetch Upcoming Drives
   Future<List<Map<String, dynamic>>> fetchUpcomingDrives() async {
-    print('DEBUG: Fetching upcoming drives');
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final sessionToken = prefs.getString('session_token');
-      if (sessionToken == null) {
-        throw Exception('No user logged in');
-      }
+    final session = await _getSession();
+    final token = session['token'];
 
+    if (token == null) {
+      print('DEBUG: No session for upcoming drives');
+      throw Exception('Not logged in');
+    }
+
+    try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/placements/upcoming'),
+        Uri.parse('${dotenv.env['API_URL']}/api/placements/upcoming'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $sessionToken',
+          'Authorization': 'Bearer $token',
         },
       );
-      print('DEBUG: fetchUpcomingDrives response: ${response.statusCode}, ${response.body}');
+
+      print('DEBUG: Upcoming drives response: ${response.statusCode}, ${response.body}');
 
       if (response.statusCode == 200) {
         return List<Map<String, dynamic>>.from(jsonDecode(response.body));
       } else {
-        throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to fetch upcoming drives');
+        print('DEBUG: Upcoming drives failed: ${response.body}');
+        await _clearSession();
+        throw Exception(jsonDecode(response.body)['message']);
       }
     } catch (e) {
-      print('DEBUG: Error in fetchUpcomingDrives: $e');
-      throw Exception('Error fetching upcoming drives: $e');
+      print('DEBUG: Upcoming drives error: $e');
+      throw Exception(e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
+  // Fetch Completed Drives
   Future<List<Map<String, dynamic>>> fetchCompletedDrives() async {
-    print('DEBUG: Fetching completed drives');
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final sessionToken = prefs.getString('session_token');
-      if (sessionToken == null) {
-        throw Exception('No user logged in');
-      }
+    final session = await _getSession();
+    final token = session['token'];
 
+    if (token == null) {
+      print('DEBUG: No session for completed drives');
+      throw Exception('Not logged in');
+    }
+
+    try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/placements/completed'),
+        Uri.parse('${dotenv.env['API_URL']}/api/placements/completed'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $sessionToken',
+          'Authorization': 'Bearer $token',
         },
       );
-      print('DEBUG: fetchCompletedDrives response: ${response.statusCode}, ${response.body}');
+
+      print('DEBUG: Completed drives response: ${response.statusCode}, ${response.body}');
 
       if (response.statusCode == 200) {
         return List<Map<String, dynamic>>.from(jsonDecode(response.body));
       } else {
-        throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to fetch completed drives');
+        print('DEBUG: Completed drives failed: ${response.body}');
+        await _clearSession();
+        throw Exception(jsonDecode(response.body)['message']);
       }
     } catch (e) {
-      print('DEBUG: Error in fetchCompletedDrives: $e');
-      throw Exception('Error fetching completed drives: $e');
+      print('DEBUG: Completed drives error: $e');
+      throw Exception(e.toString().replaceFirst('Exception: ', ''));
     }
+  }
+
+  // Logout
+  Future<void> logout() async {
+    await _clearSession();
+    print('DEBUG: Logged out');
   }
 }
