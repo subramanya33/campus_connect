@@ -30,17 +30,17 @@ class ProfileService {
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
-      } else {
-        print('DEBUG: Profile fetch failed: ${response.body}');
+      } else if (response.statusCode == 401) {
+        print('DEBUG: Unauthorized profile fetch: ${response.body}');
         await _sessionService.clearSession();
-        throw Exception(jsonDecode(response.body)['message']);
+        throw Exception('Unauthorized: Invalid or expired token');
+      } else {
+        print('DEBUG: Profile fetch failed: ${response.statusCode}, ${response.body}');
+        throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to fetch profile');
       }
     } catch (e) {
       print('DEBUG: Profile fetch error: $e');
       throw Exception(e.toString().replaceFirst('Exception: ', ''));
     }
   }
-
-  // Additional profile-related methods can be added here
-  // For example: updateProfile, changePassword, etc.
 }

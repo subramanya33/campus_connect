@@ -14,9 +14,15 @@ class AuthService {
   // Check login status (for LoginScreen)
   Future<Map<String, dynamic>> checkLoginStatus(String usn) async {
     try {
+      final token = await _sessionService.getToken();
+      print('DEBUG: Check login status - Token: ${token != null ? '[HIDDEN]' : null}, USN: $usn, Token length: ${token?.length ?? 0}');
+
       final response = await http.post(
         Uri.parse('${dotenv.env['API_URL']}/api/students/check-login-status'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
         body: jsonEncode({'usn': usn}),
       );
 
@@ -102,6 +108,8 @@ class AuthService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         await _sessionService.saveSession(data['token'], data['usn']);
+        final savedToken = await _sessionService.getToken();
+        print('DEBUG: Session saved - Token: ${savedToken != null ? '[HIDDEN]' : null}, USN: ${data['usn']}, Token length: ${savedToken?.length ?? 0}');
         return;
       } else {
         throw Exception(jsonDecode(response.body)['message']);

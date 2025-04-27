@@ -71,6 +71,7 @@ class CustomDrawer extends StatelessWidget {
             title: const Text('Home'),
             onTap: () {
               Navigator.pop(context);
+              Navigator.pushNamed(context, '/home');
               print('DEBUG: Drawer - Home tapped');
             },
           ),
@@ -97,7 +98,7 @@ class CustomDrawer extends StatelessWidget {
             title: const Text('Question Banks'),
             onTap: () {
               Navigator.pop(context);
-              Navigator.pushNamed(context, '/question_banks');
+              Navigator.pushNamed(context, '/question-banks');
               print('DEBUG: Drawer - Question Banks tapped');
             },
           ),
@@ -111,12 +112,21 @@ class CustomDrawer extends StatelessWidget {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.notifications),
-            title: const Text('Notifications'),
+            leading: const Icon(Icons.history),
+            title: const Text('History'),
             onTap: () {
               Navigator.pop(context);
-              Navigator.pushNamed(context, '/notifications');
-              print('DEBUG: Drawer - Notifications tapped');
+              Navigator.pushNamed(context, '/history');
+              print('DEBUG: Drawer - History tapped');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.feedback),
+            title: const Text('Feedback'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/feedback');
+              print('DEBUG: Drawer - Feedback tapped');
             },
           ),
           ListTile(
@@ -126,6 +136,16 @@ class CustomDrawer extends StatelessWidget {
               Navigator.pop(context);
               _showHelpDialog(context);
               print('DEBUG: Drawer - Help tapped');
+            },
+          ),
+          const Divider(), // 🔥 Divider added here
+          ListTile(
+            leading: const Icon(Icons.notifications),
+            title: const Text('Notifications'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/notifications');
+              print('DEBUG: Drawer - Notifications tapped');
             },
           ),
           ListTile(

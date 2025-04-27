@@ -1,43 +1,161 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
+const Placement = require('../models/Placement');
+const Company = require('../models/company');
+const Student = require('../models/student');
+const QuestionBank = require('../models/questionbank');
 const router = express.Router();
 
-// Mock data (replace with MongoDB queries)
-const featuredPlacements = [
-  { id: '1', bannerImage: 'http://localhost:3000/assets/uploads/placement_banners/google.jpg', company: 'Google' },
-  { id: '2', bannerImage: 'http://localhost:3000/uploads/placement_banners/amazon.jpg', company: 'Amazon' },
-];
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
-const ongoingDrives = [
-  { id: '1', name: 'Google', logo: 'http://localhost:3000/assets/uploads/logos/google.png', driveDate: '2025-05-01', status: 'Ongoing' },
-  { id: '2', name: 'Microsoft', logo: 'http://localhost:3000/assets/uploads/logos/microsoft.png', driveDate: '2025-05-03', status: 'Ongoing' },
-];
+// Authentication middleware
+const authenticate = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log(`DEBUG: Missing or invalid Authorization header`);
+      return res.status(401).json({ message: 'Authentication required' });
+    }
 
-const upcomingDrives = [
-  { id: '3', name: 'Amazon', logo: 'http://localhost:3000/assets/uploads/logos/amazon.png', driveDate: '2025-06-01', status: 'Upcoming' },
-];
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, JWT_SECRET);
 
-const completedDrives = [
-  { id: '4', name: 'Infosys', logo: 'http://localhost:3000/assets/uploads/logos/infosys.png', driveDate: '2025-04-01', status: 'Completed' },
-];
+    const student = await Student.findOne({ 
+      usn: decoded.usn,
+      _id: decoded.studentId
+    });
 
-router.get('/featured', async (req, res) => {
-  console.log('DEBUG: Fetching featured placements');
-  res.status(200).json(featuredPlacements);
+    if (!student) {
+      console.log(`DEBUG: Invalid token for USN: ${decoded.usn}`);
+      return res.status(401).json({ message: 'Invalid session' });
+    }
+
+    req.student = student;
+    next();
+  } catch (error) {
+    console.error(`DEBUG: Error in authentication: ${error.message}`);
+    res.status(401).json({ message: 'Invalid or expired token' });
+  }
+};
+
+// Placement endpoints
+router.get('/featured', authenticate, async (req, res) => {
+  try {
+    const placements = await Placement.find({ placementDate: { $gte: new Date('2025-05-01'), $lte: new Date('2025-05-31') } })
+      .populate('companyId', 'name package bannerImage logo')
+      .lean();
+    const formattedPlacements = placements.map(p => ({
+      id: p._id.toString(),
+      company: p.companyName,
+      bannerImage: p.companyId ? p.companyId.bannerImage || '' : '',
+      logo: p.companyId ? p.companyId.logo || '' : '',
+      status: 'Featured',
+      driveDate: p.placementDate.toISOString().split('T')[0],
+    }));
+    console.log(`DEBUG: Fetched ${formattedPlacements.length} featured placements`);
+    res.status(200).json(formattedPlacements);
+  } catch (error) {
+    console.error('Error fetching featured placements:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 });
 
-router.get('/ongoing', async (req, res) => {
-  console.log('DEBUG: Fetching ongoing drives');
-  res.status(200).json(ongoingDrives);
+router.get('/ongoing', authenticate, async (req, res) => {
+  try {
+    const placements = await Placement.find({ placementDate: { $gte: new Date('2025-05-01'), $lte: new Date('2025-05-31') } })
+      .populate('companyId', 'name package bannerImage logo')
+      .lean();
+    const formattedPlacements = placements.map(p => ({
+      id: p._id.toString(),
+      company: p.companyName,
+      bannerImage: p.companyId ? p.companyId.bannerImage || '' : '',
+      logo: p.companyId ? p.companyId.logo || '' : '',
+      status: 'Ongoing',
+      driveDate: p.placementDate.toISOString().split('T')[0],
+    }));
+    console.log(`DEBUG: Fetched ${formattedPlacements.length} ongoing placements`);
+    res.status(200).json(formattedPlacements);
+  } catch (error) {
+    console.error('Error fetching ongoing placements:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 });
 
-router.get('/upcoming', async (req, res) => {
-  console.log('DEBUG: Fetching upcoming drives');
-  res.status(200).json(upcomingDrives);
+router.get('/upcoming', authenticate, async (req, res) => {
+  try {
+    const placements = await Placement.find({ placementDate: { $gte: new Date('2025-06-01') } })
+      .populate('companyId', 'name package bannerImage logo')
+      .lean();
+    const formattedPlacements = placements.map(p => ({
+      id: p._id.toString(),
+      company: p.companyName,
+      bannerImage: p.companyId ? p.companyId.bannerImage || '' : '',
+      logo: p.companyId ? p.companyId.logo || '' : '',
+      status: 'Upcoming',
+      driveDate: p.placementDate.toISOString().split('T')[0],
+    }));
+    console.log(`DEBUG: Fetched ${formattedPlacements.length} upcoming placements`);
+    res.status(200).json(formattedPlacements);
+  } catch (error) {
+    console.error('Error fetching upcoming placements:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 });
 
-router.get('/completed', async (req, res) => {
-  console.log('DEBUG: Fetching completed drives');
-  res.status(200).json(completedDrives);
+router.get('/completed', authenticate, async (req, res) => {
+  try {
+    const placements = await Placement.find({ placementDate: { $lt: new Date('2025-05-01') } })
+      .populate('companyId', 'name package bannerImage logo')
+      .lean();
+    const formattedPlacements = placements.map(p => ({
+      id: p._id.toString(),
+      company: p.companyName,
+      bannerImage: p.companyId ? p.companyId.bannerImage || '' : '',
+      logo: p.companyId ? p.companyId.logo || '' : '',
+      status: 'Completed',
+      driveDate: p.placementDate.toISOString().split('T')[0],
+    }));
+    console.log(`DEBUG: Fetched ${formattedPlacements.length} completed placements`);
+    res.status(200).json(formattedPlacements);
+  } catch (error) {
+    console.error('Error fetching completed placements:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Question Banks Route
+router.get('/question-banks', authenticate, async (req, res) => {
+  try {
+    const questionBanks = await QuestionBank.aggregate([
+      {
+        $group: {
+          _id: '$category',
+          companies: {
+            $push: {
+              companyId: '$companyId',
+              name: '$companyName',
+              questions: '$questions',
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          category: '$_id',
+          companies: 1,
+          _id: 0,
+        },
+      },
+      {
+        $sort: { category: 1 },
+      },
+    ]);
+    console.log(`DEBUG: Fetched ${questionBanks.length} question bank categories`);
+    res.status(200).json(questionBanks);
+  } catch (error) {
+    console.error(`DEBUG: Error fetching question banks: ${error.message}`);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 });
 
 module.exports = router;

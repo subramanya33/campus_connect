@@ -103,7 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: CachedNetworkImage(
-                        imageUrl: placement['bannerImage'] ?? 'http://192.168.1.100:3000/uploads/placement_banners/default.jpg',
+                        imageUrl: placement['bannerImage'] ?? 'http://192.168.1.100:3000/assets/uploads/placement_banner/default.jpg',
                         fit: BoxFit.cover,
                         placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
                         errorWidget: (context, url, error) => const Icon(Icons.error),
@@ -133,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       child: ListTile(
         leading: CachedNetworkImage(
-          imageUrl: company['logo'] ?? 'http://192.168.1.100:3000/uploads/logos/default.png',
+          imageUrl: company['logo'] ?? 'http://192.168.1.100:3000/assets/uploads/logos/images.png',
           width: 50,
           height: 50,
           placeholder: (context, url) => const CircularProgressIndicator(),

@@ -17,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isFirstLogin = false;
   bool _isLoading = false;
   bool _hasCheckedStatus = false;
+  bool _obscureText = true;
 
   @override
   void initState() {
@@ -124,9 +125,9 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       print('DEBUG: Navigating to ResetPasswordScreen for USN: $usn');
     } catch (e) {
-      setState(() {
+      setState() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      });
+      };
       print('DEBUG: Error in handlePasswordReset: $e');
     } finally {
       setState(() {
@@ -193,8 +194,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         labelText: 'Password',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                         prefixIcon: const Icon(Icons.lock),
+                        suffixIcon: IconButton(
+                          icon: Icon(_obscureText ? Icons.visibility : Icons.visibility_off),
+                          onPressed: () {
+                            setState(() {
+                              _obscureText = !_obscureText;
+                            });
+                          },
+                        ),
                       ),
-                      obscureText: true,
+                      obscureText: _obscureText,
                     ),
                   ],
                   const SizedBox(height: 24),

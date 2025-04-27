@@ -5,6 +5,7 @@ import 'services/auth_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/reset_password.dart';
+import 'screens/questionbanks_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +26,7 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/home': (context) => const HomeScreen(),
         '/profile': (context) => const ProfileScreen(),
+        '/question-banks': (context) => const QuestionBanksScreen(),
         '/reset-password': (context) => ResetPasswordScreen(
               usn: ModalRoute.of(context)!.settings.arguments is Map
                   ? (ModalRoute.of(context)!.settings.arguments as Map)['usn'] ?? ''
