@@ -66,6 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _isLoading = false;
       });
       print('DEBUG: Placement data loaded - Featured: ${_featuredPlacements.length}, Ongoing: ${_ongoingDrives.length}, Upcoming: ${_upcomingDrives.length}, Completed: ${_completedDrives.length}');
+      print('DEBUG: Upcoming drives: $_upcomingDrives');
     } catch (e) {
       setState(() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
@@ -76,6 +77,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildCarousel() {
+    final placements = _upcomingDrives.isNotEmpty ? _upcomingDrives : _ongoingDrives;
     return FlutterCarousel(
       options: CarouselOptions(
         height: 200.0,
@@ -84,8 +86,10 @@ class _HomeScreenState extends State<HomeScreen> {
         enlargeCenterPage: true,
         viewportFraction: 0.9,
       ),
-      items: _featuredPlacements.isNotEmpty
-          ? _featuredPlacements.map((placement) {
+      items: placements.isNotEmpty
+          ? placements.map((placement) {
+              final companyName = (placement['company'] ?? 'unknown').toString().toLowerCase();
+              print('DEBUG: Carousel placement - Company: ${placement['company']}, Banner: ${placement['bannerImage']}');
               return Builder(
                 builder: (BuildContext context) {
                   return Container(
@@ -102,11 +106,44 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: CachedNetworkImage(
-                        imageUrl: placement['bannerImage'] ?? 'http://192.168.1.100:3000/assets/uploads/placement_banner/default.jpg',
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                        errorWidget: (context, url, error) => const Icon(Icons.error),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          CachedNetworkImage(
+                            imageUrl: placement['bannerImage']?.isNotEmpty == true
+                                ? placement['bannerImage']
+                                : 'http://192.168.1.101:3000/uploads/placement_banners/$companyName.jpg',
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                            errorWidget: (context, url, error) {
+                              print('DEBUG: Banner image error - URL: ${placement['bannerImage']}, Fallback: http://192.168.1.101:3000/uploads/placement_banners/$companyName.jpg, Error: $error');
+                              return const Icon(Icons.error);
+                            },
+                            imageBuilder: (context, imageProvider) {
+                              print('DEBUG: Banner image loaded - URL: ${placement['bannerImage']}, Fallback: http://192.168.1.101:3000/uploads/placement_banners/$companyName.jpg');
+                              return Image(image: imageProvider, fit: BoxFit.cover);
+                            },
+                          ),
+                          Positioned(
+                            bottom: 10,
+                            left: 10,
+                            child: Text(
+                              placement['company'] ?? 'Unknown Company',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                shadows: [
+                                  Shadow(
+                                    blurRadius: 4.0,
+                                    color: Colors.black,
+                                    offset: Offset(2.0, 2.0),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   );
@@ -127,20 +164,31 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildCompanyCard(Map<String, dynamic> company) {
+    final companyName = (company['company'] ?? 'unknown').toString().toLowerCase();
+    print('DEBUG: Company card - Company: ${company['company']}, Logo: ${company['logo']}');
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       child: ListTile(
         leading: CachedNetworkImage(
-          imageUrl: company['logo'] ?? 'http://192.168.1.100:3000/assets/uploads/logos/images.png',
+          imageUrl: company['logo']?.isNotEmpty == true
+              ? company['logo']
+              : 'http://192.168.1.101:3000/uploads/logos/$companyName.png',
           width: 50,
           height: 50,
-          placeholder: (context, url) => const CircularProgressIndicator(),
-          errorWidget: (context, url, error) => const Icon(Icons.business),
+          placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+          errorWidget: (context, url, error) {
+            print('DEBUG: Logo image error - URL: ${company['logo']}, Fallback: http://192.168.1.101:3000/uploads/logos/$companyName.png, Error: $error');
+            return const Icon(Icons.business);
+          },
+          imageBuilder: (context, imageProvider) {
+            print('DEBUG: Logo image loaded - URL: ${company['logo']}, Fallback: http://192.168.1.101:3000/uploads/logos/$companyName.png');
+            return Image(image: imageProvider, width: 50, height: 50);
+          },
         ),
         title: Text(
-          company['name'] ?? 'Unknown Company',
+          company['company'] ?? 'Unknown Company',
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         subtitle: Text('Drive Date: ${company['driveDate'] ?? 'TBD'}'),
@@ -153,9 +201,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   : Colors.grey[300],
         ),
         onTap: () {
-          print('DEBUG: Tapped company: ${company['name']}');
+          print('DEBUG: Tapped company: ${company['company']}');
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Details for ${company['name']} coming soon!')),
+            SnackBar(content: Text('Details for ${company['company']} coming soon!')),
           );
         },
       ),
