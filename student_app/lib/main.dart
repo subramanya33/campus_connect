@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:student_app/screens/profile_screen.dart';
+import 'package:student_app/screens/resume_builder_screen.dart';
 import 'services/auth_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
@@ -35,6 +36,29 @@ class MyApp extends StatelessWidget {
                   ? (ModalRoute.of(context)!.settings.arguments as Map)['isFirstLogin'] ?? false
                   : false,
             ),
+      },
+      onGenerateRoute: (settings) {
+        if (settings.name == '/resume_builder') {
+          final args = settings.arguments as Map<String, dynamic>?;
+          return MaterialPageRoute(
+            builder: (context) {
+              // Fetch usn from AuthService or arguments
+              return FutureBuilder<Map<String, dynamic>>(
+                future: AuthService().checkSession(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Scaffold(
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  final usn = args?['usn'] as String? ?? snapshot.data?['usn'] as String? ?? '4MT21AI058';
+                  return ResumeBuilderScreen(usn: usn);
+                },
+              );
+            },
+          );
+        }
+        return null;
       },
     );
   }

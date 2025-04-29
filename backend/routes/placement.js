@@ -3,9 +3,8 @@ const jwt = require('jsonwebtoken');
 const Placement = require('../models/Placement');
 const Company = require('../models/company');
 const Student = require('../models/student');
-const QuestionBank = require('../models/questionbank');
-const router = express.Router();
 
+const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
 // Authentication middleware
@@ -123,41 +122,6 @@ router.get('/completed', authenticate, async (req, res) => {
     res.status(200).json(formattedPlacements);
   } catch (error) {
     console.error('Error fetching completed placements:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-// Question Banks Route
-router.get('/question-banks', authenticate, async (req, res) => {
-  try {
-    const questionBanks = await QuestionBank.aggregate([
-      {
-        $group: {
-          _id: '$category',
-          companies: {
-            $push: {
-              companyId: '$companyId',
-              name: '$companyName',
-              questions: '$questions',
-            },
-          },
-        },
-      },
-      {
-        $project: {
-          category: '$_id',
-          companies: 1,
-          _id: 0,
-        },
-      },
-      {
-        $sort: { category: 1 },
-      },
-    ]);
-    console.log(`DEBUG: Fetched ${questionBanks.length} question bank categories`);
-    res.status(200).json(questionBanks);
-  } catch (error) {
-    console.error(`DEBUG: Error fetching question banks: ${error.message}`);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class QuestionBankService {
-  static const String baseUrl = 'http://192.168.1.101:3000/api/placements'; // Update for emulator if needed
+  static const String baseUrl = 'http://192.168.1.101:3000/api/questionbank'; // Update for emulator if needed
 
   Future<List<dynamic>> fetchQuestionBanks() async {
     print('DEBUG: QuestionBankService: Starting fetchQuestionBanks');

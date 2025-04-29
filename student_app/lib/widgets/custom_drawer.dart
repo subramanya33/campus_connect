@@ -48,7 +48,7 @@ class CustomDrawer extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 CachedNetworkImage(
-                  imageUrl: 'http://192.168.1.100:3000/uploads/profile_pics/$usn.jpg',
+                  imageUrl: 'http://192.168.1.101:3000/uploads/profile_pics/$usn.jpg',
                   width: 60,
                   height: 60,
                   placeholder: (context, url) => const CircularProgressIndicator(),

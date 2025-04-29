@@ -15,11 +15,15 @@ const studentRoutes = require('./routes/student');
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
 const placementRoutes = require('./routes/placement');
-
+const questionBankRoutes = require('./routes/questionbank');  
+const resumeRoutes = require('./routes/resume');
+// ✅ Correct
+app.use('/api/resumes', resumeRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/students', authRoutes);
 app.use('/api/students', profileRoutes);
 app.use('/api/placements', placementRoutes);
+app.use('/api/questionbank', questionBankRoutes);  // ✅ Correct
 
 // MongoDB Connection
 mongoose

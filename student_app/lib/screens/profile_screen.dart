@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_pdfview/flutter_pdfview.dart';
+import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 import '../services/profile_service.dart';
 import '../widgets/custom_drawer.dart';
-//import './edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -14,11 +18,16 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? _profile;
+  List<Map<String, dynamic>> _resumes = [];
   bool _isLoading = true;
+  bool _isResumeLoading = true;
   String _errorMessage = '';
+  String _resumeErrorMessage = '';
   String _fullName = '';
   String _usn = '';
   double _opacity = 0.0;
+  String? _selectedResume;
+  String? _pdfPath;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
@@ -26,7 +35,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     print('DEBUG: ProfileScreen initialized');
     _fetchProfile();
-    // Trigger fade-in animation
+    _fetchResumes();
     Future.delayed(const Duration(milliseconds: 100), () {
       setState(() {
         _opacity = 1.0;
@@ -55,6 +64,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _isLoading = false;
       });
       print('DEBUG: Error fetching profile: $e');
+    }
+  }
+
+  Future<void> _fetchResumes() async {
+    setState(() {
+      _isResumeLoading = true;
+      _resumeErrorMessage = '';
+    });
+
+    try {
+      final resumes = await ProfileService.fetchResumes();
+      setState(() {
+        _resumes = resumes;
+        _isResumeLoading = false;
+        if (resumes.isNotEmpty) {
+          _selectedResume = resumes[0]['filePath'];
+        }
+      });
+      print('DEBUG: Resumes loaded: ${resumes.length}');
+    } catch (e) {
+      setState(() {
+        _resumeErrorMessage = e.toString().replaceFirst('Exception: ', '');
+        _isResumeLoading = false;
+      });
+      print('DEBUG: Error fetching resumes: $e');
+    }
+  }
+
+  Future<void> _downloadAndPreviewPDF(String url) async {
+    try {
+      final dio = Dio();
+      final dir = await getTemporaryDirectory();
+      final path = '${dir.path}/resume.pdf';
+      await dio.download('${dotenv.env['API_URL']}$url', path);
+      setState(() {
+        _pdfPath = path;
+      });
+      print('DEBUG: PDF downloaded to $path');
+      if (_pdfPath != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PDFPreviewScreen(pdfPath: _pdfPath!),
+          ),
+        );
+      }
+    } catch (e) {
+      print('DEBUG: Error downloading PDF: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load PDF: $e')),
+      );
     }
   }
 
@@ -98,7 +158,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 )
               : CustomScrollView(
                   slivers: [
-                    // Profile Header
                     SliverAppBar(
                       expandedHeight: 250.0,
                       floating: false,
@@ -126,7 +185,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   child: ClipOval(
                                     child: CachedNetworkImage(
                                       imageUrl:
-                                          'http://192.168.1.100:3000/uploads/profile_pics/${_profile!['usn']}.jpg',
+                                          '${dotenv.env['API_URL']}/uploads/profile_pics/${_profile!['usn']}.jpg',
                                       width: 110,
                                       height: 110,
                                       fit: BoxFit.cover,
@@ -165,7 +224,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         },
                       ),
                     ),
-                    // Profile Details
                     SliverToBoxAdapter(
                       child: AnimatedOpacity(
                         opacity: _opacity,
@@ -253,14 +311,74 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ],
                                 ),
                               ),
+                              const SizedBox(height: 16),
+                              // Resume Section
+                              Card(
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                child: ExpansionTile(
+                                  title: const Text(
+                                    'Resumes',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.indigo,
+                                    ),
+                                  ),
+                                  leading: const Icon(Icons.description, color: Colors.indigo),
+                                  childrenPadding: const EdgeInsets.all(16.0),
+                                  children: [
+                                    _isResumeLoading
+                                        ? const Center(child: CircularProgressIndicator())
+                                        : _resumeErrorMessage.isNotEmpty
+                                            ? Text(
+                                                _resumeErrorMessage,
+                                                style: const TextStyle(color: Colors.red),
+                                              )
+                                            : _resumes.isEmpty
+                                                ? const Text('No resumes found')
+                                                : Column(
+                                                    children: [
+                                                      DropdownButton<String>(
+                                                        value: _selectedResume,
+                                                        hint: const Text('Select a resume'),
+                                                        isExpanded: true,
+                                                        items: _resumes.map((resume) {
+                                                          final fileName = resume['filePath'].split('/').last;
+                                                          return DropdownMenuItem<String>(
+                                                            value: resume['filePath'],
+                                                            child: Text(fileName),
+                                                          );
+                                                        }).toList(),
+                                                        onChanged: (value) {
+                                                          setState(() {
+                                                            _selectedResume = value;
+                                                            _pdfPath = null; // Reset PDF path
+                                                          });
+                                                        },
+                                                      ),
+                                                      const SizedBox(height: 8),
+                                                      ElevatedButton(
+                                                        onPressed: _selectedResume != null
+                                                            ? () => _downloadAndPreviewPDF(_selectedResume!)
+                                                            : null,
+                                                        style: ElevatedButton.styleFrom(
+                                                          backgroundColor: Colors.indigo,
+                                                          foregroundColor: Colors.white,
+                                                        ),
+                                                        child: const Text('Preview PDF'),
+                                                      ),
+                                                    ],
+                                                  ),
+                                  ],
+                                ),
+                              ),
                               const SizedBox(height: 24),
                               // Edit Profile Button
                               Center(
                                 child: ElevatedButton.icon(
-                                  onPressed: () async {
-                                   
-                                  
-                                   
+                                  onPressed: () {
+                                    // Navigate to edit profile screen
                                   },
                                   icon: const Icon(Icons.edit, size: 20),
                                   label: const Text('Edit Profile'),
@@ -312,6 +430,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class PDFPreviewScreen extends StatelessWidget {
+  final String pdfPath;
+
+  const PDFPreviewScreen({super.key, required this.pdfPath});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Resume Preview'),
+        backgroundColor: Colors.indigo,
+      ),
+      body: PDFView(
+        filePath: pdfPath,
+        enableSwipe: true,
+        swipeHorizontal: true,
+        autoSpacing: true,
+        pageFling: true,
+        onError: (error) {
+          print('DEBUG: PDFView error: $error');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error loading PDF: $error')),
+          );
+        },
       ),
     );
   }

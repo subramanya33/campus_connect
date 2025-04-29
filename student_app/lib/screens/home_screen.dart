@@ -38,9 +38,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _fullName = profile['fullName'] ?? '';
         _usn = profile['usn'] ?? '';
       });
-      print('DEBUG: Student profile loaded - Full Name: $_fullName, USN: $_usn');
     } catch (e) {
-      print('DEBUG: Error fetching student profile: $e');
+      // Silent error handling as per current code
     }
   }
 
@@ -74,6 +73,61 @@ class _HomeScreenState extends State<HomeScreen> {
       });
       print('DEBUG: Error fetching placement data: $e');
     }
+  }
+
+  Widget _buildStayTunedMessage({bool isCarousel = false}) {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: isCarousel ? 5.0 : 16.0, vertical: 16.0),
+      padding: const EdgeInsets.all(20.0),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Colors.indigo, Colors.blueAccent],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.rocket_launch,
+            color: Colors.white,
+            size: 30,
+          ),
+          const SizedBox(width: 10),
+          Flexible(
+            child: AnimatedOpacity(
+              opacity: 1.0,
+              duration: const Duration(seconds: 1),
+              child: const Text(
+                'Stay Tuned! Exciting Drives Coming Soon!',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  shadows: [
+                    Shadow(
+                      blurRadius: 4.0,
+                      color: Colors.black45,
+                      offset: Offset(2.0, 2.0),
+                    ),
+                  ],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildCarousel() {
@@ -116,11 +170,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             fit: BoxFit.cover,
                             placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
                             errorWidget: (context, url, error) {
-                              print('DEBUG: Banner image error - URL: ${placement['bannerImage']}, Fallback: http://192.168.1.101:3000/uploads/placement_banners/$companyName.jpg, Error: $error');
                               return const Icon(Icons.error);
                             },
                             imageBuilder: (context, imageProvider) {
-                              print('DEBUG: Banner image loaded - URL: ${placement['bannerImage']}, Fallback: http://192.168.1.101:3000/uploads/placement_banners/$companyName.jpg');
                               return Image(image: imageProvider, fit: BoxFit.cover);
                             },
                           ),
@@ -150,16 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               );
             }).toList()
-          : [
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 5.0),
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Center(child: Text('No new placements')),
-              ),
-            ],
+          : [_buildStayTunedMessage(isCarousel: true)],
     );
   }
 
@@ -179,11 +222,9 @@ class _HomeScreenState extends State<HomeScreen> {
           height: 50,
           placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
           errorWidget: (context, url, error) {
-            print('DEBUG: Logo image error - URL: ${company['logo']}, Fallback: http://192.168.1.101:3000/uploads/logos/$companyName.png, Error: $error');
             return const Icon(Icons.business);
           },
           imageBuilder: (context, imageProvider) {
-            print('DEBUG: Logo image loaded - URL: ${company['logo']}, Fallback: http://192.168.1.101:3000/uploads/logos/$companyName.png');
             return Image(image: imageProvider, width: 50, height: 50);
           },
         ),
@@ -232,10 +273,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 itemCount: drives.length,
                 itemBuilder: (context, index) => _buildCompanyCard(drives[index]),
               )
-            : const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text('No drives available'),
-              ),
+            : _buildStayTunedMessage(),
       ],
     );
   }
