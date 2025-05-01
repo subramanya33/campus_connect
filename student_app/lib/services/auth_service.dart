@@ -18,7 +18,7 @@ class AuthService {
       print('DEBUG: Check login status - Token: ${token != null ? '[HIDDEN]' : null}, USN: $usn, Token length: ${token?.length ?? 0}');
 
       final response = await http.post(
-        Uri.parse('${dotenv.env['API_URL']}/api/students/check-login-status'),
+        Uri.parse('${dotenv.env['API_URL']}/api/auth/check-login-status'),
         headers: {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
@@ -61,7 +61,7 @@ class AuthService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('${dotenv.env['API_URL']}/api/students/register'),
+        Uri.parse('${dotenv.env['API_URL']}/api/auth/register'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'firstName': firstName,
@@ -98,7 +98,7 @@ class AuthService {
   Future<void> login(String usn, String password) async {
     try {
       final response = await http.post(
-        Uri.parse('${dotenv.env['API_URL']}/api/students/login'),
+        Uri.parse('${dotenv.env['API_URL']}/api/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'usn': usn, 'password': password}),
       );
@@ -124,7 +124,7 @@ class AuthService {
   Future<void> requestOtp(String usn, String email) async {
     try {
       final response = await http.post(
-        Uri.parse('${dotenv.env['API_URL']}/api/students/forgot-password'),
+        Uri.parse('${dotenv.env['API_URL']}/api/auth/forgot-password'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'usn': usn, 'email': email}),
       );
@@ -146,7 +146,7 @@ class AuthService {
   Future<void> verifyOtp(String usn, String otp) async {
     try {
       final response = await http.post(
-        Uri.parse('${dotenv.env['API_URL']}/api/students/verify-otp'),
+        Uri.parse('${dotenv.env['API_URL']}/api/auth/verify-otp'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'usn': usn, 'otp': otp}),
       );
@@ -168,7 +168,7 @@ class AuthService {
   Future<void> resetPassword(String usn, String newPassword) async {
     try {
       final response = await http.post(
-        Uri.parse('${dotenv.env['API_URL']}/api/students/reset-password'),
+        Uri.parse('${dotenv.env['API_URL']}/api/auth/reset-password'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'usn': usn, 'newPassword': newPassword}),
       );

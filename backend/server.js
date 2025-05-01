@@ -7,7 +7,8 @@ const app = express();
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // ✅ Set once with size limit
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
@@ -17,13 +18,17 @@ const profileRoutes = require('./routes/profile');
 const placementRoutes = require('./routes/placement');
 const questionBankRoutes = require('./routes/questionbank');  
 const resumeRoutes = require('./routes/resume');
-// ✅ Correct
+
+// ✅ No need for body-parser — express has built-in support
+// const bodyParser = require('body-parser'); ❌ Remove this
+
+// API Endpoints
 app.use('/api/resumes', resumeRoutes);
 app.use('/api/students', studentRoutes);
-app.use('/api/students', authRoutes);
-app.use('/api/students', profileRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api', profileRoutes);
 app.use('/api/placements', placementRoutes);
-app.use('/api/questionbank', questionBankRoutes);  // ✅ Correct
+app.use('/api/questionbank', questionBankRoutes);
 
 // MongoDB Connection
 mongoose

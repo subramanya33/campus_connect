@@ -70,7 +70,7 @@ class SessionService {
 
     try {
       final response = await http.post(
-        Uri.parse('${dotenv.env['API_URL']}/api/students/check-login-status'),
+        Uri.parse('${dotenv.env['API_URL']}/api/auth/check-login-status'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',

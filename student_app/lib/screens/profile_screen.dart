@@ -7,7 +7,10 @@ import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import '../services/profile_service.dart';
+import '../services/resume_service.dart';
 import '../widgets/custom_drawer.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:crypto/crypto.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -76,13 +79,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final resumes = await ProfileService.fetchResumes();
       setState(() {
-        _resumes = resumes;
+        _resumes = resumes.where((resume) => resume['filePath'] != null).toList();
         _isResumeLoading = false;
-        if (resumes.isNotEmpty) {
-          _selectedResume = resumes[0]['filePath'];
+        if (_resumes.isNotEmpty) {
+          _selectedResume = _resumes[0]['filePath']; // Ensure latest resume is selected
+          _pdfPath = null;
+          print('DEBUG: Selected resume: $_selectedResume');
+        } else {
+          _selectedResume = null;
         }
       });
-      print('DEBUG: Resumes loaded: ${resumes.length}');
+      print('DEBUG: Resumes loaded: ${_resumes.length}');
     } catch (e) {
       setState(() {
         _resumeErrorMessage = e.toString().replaceFirst('Exception: ', '');
@@ -95,18 +102,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _downloadAndPreviewPDF(String url) async {
     try {
       final dio = Dio();
+      dio.options.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+      dio.options.headers['Pragma'] = 'no-cache';
+      dio.options.headers['Expires'] = '0';
+
       final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/resume.pdf';
-      await dio.download('${dotenv.env['API_URL']}$url', path);
+      final path = '${dir.path}/resume_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final cacheBustUrl = '${dotenv.env['API_URL']}$url?ts=${DateTime.now().millisecondsSinceEpoch}&nocache=${DateTime.now().millisecondsSinceEpoch}';
+      print('DEBUG: Downloading PDF from: $cacheBustUrl');
+
+      // Clear any existing file at the path
+      final file = File(path);
+      if (await file.exists()) {
+        await file.delete();
+        print('DEBUG: Cleared existing file at $path');
+      }
+
+      // Clear previous pdfPath if it exists
+      if (_pdfPath != null && await File(_pdfPath!).exists()) {
+        await File(_pdfPath!).delete();
+        print('DEBUG: Cleared previous pdfPath: $_pdfPath');
+      }
+
+      await dio.download(cacheBustUrl, path);
+      print('DEBUG: PDF downloaded to $path');
+
+      // Verify downloaded file
+      final bytes = await file.readAsBytes();
+      final fileHash = md5.convert(bytes).toString();
+      print('DEBUG: Downloaded file hash: $fileHash');
+
       setState(() {
         _pdfPath = path;
       });
-      print('DEBUG: PDF downloaded to $path');
+
       if (_pdfPath != null) {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => PDFPreviewScreen(pdfPath: _pdfPath!),
+            builder: (context) => PDFPreviewScreen(
+              pdfPath: _pdfPath!,
+              key: ValueKey(_pdfPath),
+            ),
           ),
         );
       }
@@ -118,11 +155,90 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _uploadResume() async {
+    try {
+      await FilePicker.platform.clearTemporaryFiles().catchError((e) {
+        print('DEBUG: clearTemporaryFiles not implemented: $e');
+      });
+
+      FilePickerResult? result;
+      int attempts = 0;
+      const maxAttempts = 3;
+      while (result == null && attempts < maxAttempts) {
+        print('DEBUG: FilePicker attempt ${attempts + 1}');
+        result = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['pdf'],
+          allowMultiple: false,
+          withData: true,
+          dialogTitle: 'Select a PDF Resume',
+        );
+        attempts++;
+        if (result == null) {
+          print('DEBUG: FilePicker returned null, retrying...');
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+      }
+
+      if (result != null && result.files.single.path != null) {
+        final file = File(result.files.single.path!);
+        if (!file.path.toLowerCase().endsWith('.pdf')) {
+          throw Exception('Please select a PDF file');
+        }
+
+        final fileSize = await file.length();
+        print('DEBUG: Selected file: ${file.path}, Size: ${fileSize / (1024 * 1024)} MB');
+
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Uploading resume...'),
+              ],
+            ),
+          ),
+        );
+
+        try {
+          await ResumeService.uploadCustomResume(
+            usn: _usn,
+            pdfFile: file,
+          );
+          Navigator.pop(context);
+          await _fetchResumes();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Resume uploaded successfully')),
+          );
+        } catch (e) {
+          Navigator.pop(context);
+          throw e;
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No file selected after $maxAttempts attempts')),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isResumeLoading = false;
+      });
+      print('DEBUG: Error uploading resume: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    }
+  }
+
   String _formatDate(String? date) {
     if (date == null) return 'N/A';
     try {
       final parsedDate = DateTime.parse(date);
-      return DateFormat('dd MMM yyyy').format(parsedDate);
+      return DateFormat('dd MMM yyyy').format(parsedDate.toLocal());
     } catch (e) {
       return 'N/A';
     }
@@ -233,7 +349,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Personal Info
                               Card(
                                 elevation: 2,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -258,7 +373,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              // Academic Details
                               Card(
                                 elevation: 2,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -288,7 +402,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              // Placement Status
                               Card(
                                 elevation: 2,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -312,7 +425,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              // Resume Section
                               Card(
                                 elevation: 2,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -344,29 +456,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                         hint: const Text('Select a resume'),
                                                         isExpanded: true,
                                                         items: _resumes.map((resume) {
-                                                          final fileName = resume['filePath'].split('/').last;
+                                                          final fileName = resume['filePath']?.split('/').last ?? 'Untitled Resume';
                                                           return DropdownMenuItem<String>(
                                                             value: resume['filePath'],
-                                                            child: Text(fileName),
+                                                            child: Text('$fileName (${resume['format']})'),
                                                           );
                                                         }).toList(),
                                                         onChanged: (value) {
                                                           setState(() {
                                                             _selectedResume = value;
-                                                            _pdfPath = null; // Reset PDF path
+                                                            _pdfPath = null;
+                                                            print('DEBUG: Dropdown selected: $value');
                                                           });
                                                         },
+                                                        key: ValueKey(_resumes.length), // Force dropdown refresh
                                                       ),
                                                       const SizedBox(height: 8),
-                                                      ElevatedButton(
-                                                        onPressed: _selectedResume != null
-                                                            ? () => _downloadAndPreviewPDF(_selectedResume!)
-                                                            : null,
-                                                        style: ElevatedButton.styleFrom(
-                                                          backgroundColor: Colors.indigo,
-                                                          foregroundColor: Colors.white,
-                                                        ),
-                                                        child: const Text('Preview PDF'),
+                                                      Row(
+                                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                        children: [
+                                                          ElevatedButton(
+                                                            onPressed: _selectedResume != null
+                                                                ? () => _downloadAndPreviewPDF(_selectedResume!)
+                                                                : null,
+                                                            style: ElevatedButton.styleFrom(
+                                                              backgroundColor: Colors.indigo,
+                                                              foregroundColor: Colors.white,
+                                                            ),
+                                                            child: const Text('Preview PDF'),
+                                                          ),
+                                                          ElevatedButton(
+                                                            onPressed: _uploadResume,
+                                                            style: ElevatedButton.styleFrom(
+                                                              backgroundColor: Colors.green,
+                                                              foregroundColor: Colors.white,
+                                                            ),
+                                                            child: const Text('Upload Resume'),
+                                                          ),
+                                                        ],
                                                       ),
                                                     ],
                                                   ),
@@ -374,7 +501,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ),
                               const SizedBox(height: 24),
-                              // Edit Profile Button
                               Center(
                                 child: ElevatedButton.icon(
                                   onPressed: () {
@@ -437,8 +563,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
 class PDFPreviewScreen extends StatelessWidget {
   final String pdfPath;
+  final Key key;
 
-  const PDFPreviewScreen({super.key, required this.pdfPath});
+  const PDFPreviewScreen({required this.pdfPath, required this.key});
 
   @override
   Widget build(BuildContext context) {
@@ -448,6 +575,7 @@ class PDFPreviewScreen extends StatelessWidget {
         backgroundColor: Colors.indigo,
       ),
       body: PDFView(
+        key: key,
         filePath: pdfPath,
         enableSwipe: true,
         swipeHorizontal: true,

@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 
 const resumeSchema = new mongoose.Schema({
-  usn: { type: String, required: true },
+  usn: { type: String, required: true, unique: true },
   format: { type: String, required: true },
-  filePath: { type: String }, // Not required for legacy compatibility
+  filePath: { type: String, required: true },
   updatedAt: { type: Date, default: Date.now },
 });
 

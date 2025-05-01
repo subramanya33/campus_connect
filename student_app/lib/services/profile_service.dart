@@ -19,7 +19,7 @@ class ProfileService {
 
     try {
       final response = await http.get(
-        Uri.parse('${dotenv.env['API_URL']}/api/students/profile'),
+        Uri.parse('${dotenv.env['API_URL']}/api/profile'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
