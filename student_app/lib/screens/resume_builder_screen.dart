@@ -8,7 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/resume_service.dart';
 import '../services/profile_service.dart';
-import 'dart:convert'; // Added for base64 encoding
+import 'dart:convert';
 
 class ResumeBuilderScreen extends StatefulWidget {
   final String usn;
@@ -87,7 +87,7 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
   }
 
   Future<void> _pickPhoto() async {
-    final status = await Permission.storage.request();
+    final status = await Permission.photos.request();
     if (status.isGranted) {
       final XFile? photo = await _picker.pickImage(source: ImageSource.gallery);
       if (photo != null) {
@@ -97,7 +97,7 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Storage permission denied')),
+        const SnackBar(content: Text('Photo permission denied')),
       );
     }
   }
@@ -122,8 +122,10 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
     final pdf = pw.Document();
 
     // Load Times New Roman font from assets
-    final timesRegular = await pw.Font.ttf(await DefaultAssetBundle.of(context).load('assets/fonts/times.ttf'));
-    final timesBold = await pw.Font.ttf(await DefaultAssetBundle.of(context).load('assets/fonts/timesbd.ttf'));
+    final timesRegular = await pw.Font.ttf(
+        await DefaultAssetBundle.of(context).load('assets/fonts/times.ttf'));
+    final timesBold = await pw.Font.ttf(
+        await DefaultAssetBundle.of(context).load('assets/fonts/timesbd.ttf'));
     final textColor = PdfColor.fromHex('#000000');
     final photoImage = await _getPhotoImage();
 
@@ -143,83 +145,252 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                     pw.Expanded(
                       child: pw.Text(
                         _name,
-                        style: pw.TextStyle(font: timesBold, fontSize: 24, color: textColor),
+                        style: pw.TextStyle(
+                          font: timesBold,
+                          fontSize: 24,
+                          color: textColor,
+                        ),
                       ),
                     ),
                     if (photoImage != null)
                       pw.Container(
                         width: 80,
                         height: 80,
-                        child: pw.ClipOval(child: pw.Image(photoImage, fit: pw.BoxFit.cover)),
+                        child: pw.ClipOval(
+                          child: pw.Image(
+                            photoImage,
+                            fit: pw.BoxFit.cover,
+                          ),
+                        ),
                       ),
                   ],
                 ),
                 pw.SizedBox(height: 8),
                 // Contact Info
-                pw.Text(_email, style: pw.TextStyle(font: timesRegular, fontSize: 10, color: textColor)),
-                pw.Text(_phone, style: pw.TextStyle(font: timesRegular, fontSize: 10, color: textColor)),
-                pw.Text(_github, style: pw.TextStyle(font: timesRegular, fontSize: 10, color: textColor)),
-                pw.Text(_address, style: pw.TextStyle(font: timesRegular, fontSize: 10, color: textColor)),
+                pw.Text(
+                  _email,
+                  style: pw.TextStyle(
+                    font: timesRegular,
+                    fontSize: 10,
+                    color: textColor,
+                  ),
+                ),
+                pw.Text(
+                  _phone,
+                  style: pw.TextStyle(
+                    font: timesRegular,
+                    fontSize: 10,
+                    color: textColor,
+                  ),
+                ),
+                pw.Text(
+                  _github,
+                  style: pw.TextStyle(
+                    font: timesRegular,
+                    fontSize: 10,
+                    color: textColor,
+                  ),
+                ),
+                pw.Text(
+                  _address,
+                  style: pw.TextStyle(
+                    font: timesRegular,
+                    fontSize: 10,
+                    color: textColor,
+                  ),
+                ),
                 pw.SizedBox(height: 12),
                 // Summary
-                pw.Text('SUMMARY', style: pw.TextStyle(font: timesBold, fontSize: 14, color: textColor)),
+                pw.Text(
+                  'SUMMARY',
+                  style: pw.TextStyle(
+                    font: timesBold,
+                    fontSize: 14,
+                    color: textColor,
+                  ),
+                ),
                 pw.SizedBox(height: 4),
-                pw.Text(_summary, style: pw.TextStyle(font: timesRegular, fontSize: 10, color: textColor)),
+                pw.Text(
+                  _summary,
+                  style: pw.TextStyle(
+                    font: timesRegular,
+                    fontSize: 10,
+                    color: textColor,
+                  ),
+                ),
                 pw.SizedBox(height: 12),
                 // Education
-                pw.Text('EDUCATION', style: pw.TextStyle(font: timesBold, fontSize: 14, color: textColor)),
+                pw.Text(
+                  'EDUCATION',
+                  style: pw.TextStyle(
+                    font: timesBold,
+                    fontSize: 14,
+                    color: textColor,
+                  ),
+                ),
                 pw.SizedBox(height: 4),
                 pw.Text(
                   'Bachelor of Engineering - Artificial Intelligence and Machine Learning $_beYear CGPA: $_beCgpa\n$_beCollege',
-                  style: pw.TextStyle(font: timesRegular, fontSize: 10, color: textColor),
+                  style: pw.TextStyle(
+                    font: timesRegular,
+                    fontSize: 10,
+                    color: textColor,
+                  ),
                 ),
                 if (_hasDiploma)
                   pw.Text(
                     'Diploma $_diplomaYear Percentage: $_diplomaPercentage\n$_diplomaCollege',
-                    style: pw.TextStyle(font: timesRegular, fontSize: 10, color: textColor),
+                    style: pw.TextStyle(
+                      font: timesRegular,
+                      fontSize: 10,
+                      color: textColor,
+                    ),
                   ),
                 if (!_hasDiploma)
                   pw.Text(
                     'Senior Secondary (12th) $_puYear Percentage: $_puPercentage\n$_puCollege',
-                    style: pw.TextStyle(font: timesRegular, fontSize: 10, color: textColor),
+                    style: pw.TextStyle(
+                      font: timesRegular,
+                      fontSize: 10,
+                      color: textColor,
+                    ),
                   ),
                 pw.Text(
                   'Secondary School (SSLC) $_sslcYear Percentage: $_sslcPercentage\n$_sslcSchool',
-                  style: pw.TextStyle(font: timesRegular, fontSize: 10, color: textColor),
+                  style: pw.TextStyle(
+                    font: timesRegular,
+                    fontSize: 10,
+                    color: textColor,
+                  ),
                 ),
                 pw.SizedBox(height: 12),
                 // Skills
-                pw.Text('SKILLS', style: pw.TextStyle(font: timesBold, fontSize: 14, color: textColor)),
+                pw.Text(
+                  'SKILLS',
+                  style: pw.TextStyle(
+                    font: timesBold,
+                    fontSize: 14,
+                    color: textColor,
+                  ),
+                ),
                 pw.SizedBox(height: 4),
-                pw.Text('Languages: $_languages', style: pw.TextStyle(font: timesRegular, fontSize: 10, color: textColor)),
-                pw.Text('Interface: $_interface', style: pw.TextStyle(font: timesRegular, fontSize: 10, color: textColor)),
-                pw.Text('Database: $_database', style: pw.TextStyle(font: timesRegular, fontSize: 10, color: textColor)),
-                pw.Text('Tools: $_tools', style: pw.TextStyle(font: timesRegular, fontSize: 10, color: textColor)),
+                pw.Text(
+                  'Languages: $_languages',
+                  style: pw.TextStyle(
+                    font: timesRegular,
+                    fontSize: 10,
+                    color: textColor,
+                  ),
+                ),
+                pw.Text(
+                  'Interface: $_interface',
+                  style: pw.TextStyle(
+                    font: timesRegular,
+                    fontSize: 10,
+                    color: textColor,
+                  ),
+                ),
+                pw.Text(
+                  'Database: $_database',
+                  style: pw.TextStyle(
+                    font: timesRegular,
+                    fontSize: 10,
+                    color: textColor,
+                  ),
+                ),
+                pw.Text(
+                  'Tools: $_tools',
+                  style: pw.TextStyle(
+                    font: timesRegular,
+                    fontSize: 10,
+                    color: textColor,
+                  ),
+                ),
                 for (var custom in _customSkills)
                   pw.Text(
                     '${custom['heading']}: ${custom['content']}',
-                    style: pw.TextStyle(font: timesRegular, fontSize: 10, color: textColor),
+                    style: pw.TextStyle(
+                      font: timesRegular,
+                      fontSize: 10,
+                      color: textColor,
+                    ),
                   ),
                 pw.SizedBox(height: 12),
                 // Internship
-                pw.Text('INTERNSHIP', style: pw.TextStyle(font: timesBold, fontSize: 14, color: textColor)),
+                pw.Text(
+                  'INTERNSHIP',
+                  style: pw.TextStyle(
+                    font: timesBold,
+                    fontSize: 14,
+                    color: textColor,
+                  ),
+                ),
                 pw.SizedBox(height: 4),
-                pw.Text(_internship, style: pw.TextStyle(font: timesRegular, fontSize: 10, color: textColor)),
+                pw.Text(
+                  _internship,
+                  style: pw.TextStyle(
+                    font: timesRegular,
+                    fontSize: 10,
+                    color: textColor,
+                  ),
+                ),
                 pw.SizedBox(height: 12),
                 // Projects
-                pw.Text('PROJECTS', style: pw.TextStyle(font: timesBold, fontSize: 14, color: textColor)),
+                pw.Text(
+                  'PROJECTS',
+                  style: pw.TextStyle(
+                    font: timesBold,
+                    fontSize: 14,
+                    color: textColor,
+                  ),
+                ),
                 pw.SizedBox(height: 4),
-                pw.Text(_projects, style: pw.TextStyle(font: timesRegular, fontSize: 10, color: textColor)),
+                pw.Text(
+                  _projects,
+                  style: pw.TextStyle(
+                    font: timesRegular,
+                    fontSize: 10,
+                    color: textColor,
+                  ),
+                ),
                 pw.SizedBox(height: 12),
                 // Courses
-                pw.Text('COURSES', style: pw.TextStyle(font: timesBold, fontSize: 14, color: textColor)),
+                pw.Text(
+                  'COURSES',
+                  style: pw.TextStyle(
+                    font: timesBold,
+                    fontSize: 14,
+                    color: textColor,
+                  ),
+                ),
                 pw.SizedBox(height: 4),
-                pw.Text(_courses, style: pw.TextStyle(font: timesRegular, fontSize: 10, color: textColor)),
+                pw.Text(
+                  _courses,
+                  style: pw.TextStyle(
+                    font: timesRegular,
+                    fontSize: 10,
+                    color: textColor,
+                  ),
+                ),
                 pw.SizedBox(height: 12),
                 // Hobbies
-                pw.Text('HOBBIES', style: pw.TextStyle(font: timesBold, fontSize: 14, color: textColor)),
+                pw.Text(
+                  'HOBBIES',
+                  style: pw.TextStyle(
+                    font: timesBold,
+                    fontSize: 14,
+                    color: textColor,
+                  ),
+                ),
                 pw.SizedBox(height: 4),
-                pw.Text(_hobbies, style: pw.TextStyle(font: timesRegular, fontSize: 10, color: textColor)),
+                pw.Text(
+                  _hobbies,
+                  style: pw.TextStyle(
+                    font: timesRegular,
+                    fontSize: 10,
+                    color: textColor,
+                  ),
+                ),
               ],
             ),
           ],
@@ -240,29 +411,112 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text(_name, style: pw.TextStyle(font: timesBold, fontSize: 20)),
+                      pw.Text(
+                        _name,
+                        style: pw.TextStyle(
+                          font: timesBold,
+                          fontSize: 20,
+                        ),
+                      ),
                       if (photoImage != null)
                         pw.Container(
                           width: 60,
                           height: 60,
                           margin: const pw.EdgeInsets.only(bottom: 8),
-                          child: pw.ClipOval(child: pw.Image(photoImage, fit: pw.BoxFit.cover)),
+                          child: pw.ClipOval(
+                            child: pw.Image(
+                              photoImage,
+                              fit: pw.BoxFit.cover,
+                            ),
+                          ),
                         ),
-                      pw.Text(_email, style: pw.TextStyle(font: timesRegular, fontSize: 10)),
-                      pw.Text(_phone, style: pw.TextStyle(font: timesRegular, fontSize: 10)),
-                      pw.Text(_github, style: pw.TextStyle(font: timesRegular, fontSize: 10)),
-                      pw.Text(_address, style: pw.TextStyle(font: timesRegular, fontSize: 10)),
+                      pw.Text(
+                        _email,
+                        style: pw.TextStyle(
+                          font: timesRegular,
+                          fontSize: 10,
+                        ),
+                      ),
+                      pw.Text(
+                        _phone,
+                        style: pw.TextStyle(
+                          font: timesRegular,
+                          fontSize: 10,
+                        ),
+                      ),
+                      pw.Text(
+                        _github,
+                        style: pw.TextStyle(
+                          font: timesRegular,
+                          fontSize: 10,
+                        ),
+                      ),
+                      pw.Text(
+                        _address,
+                        style: pw.TextStyle(
+                          font: timesRegular,
+                          fontSize: 10,
+                        ),
+                      ),
                       pw.SizedBox(height: 12),
-                      pw.Text('SKILLS', style: pw.TextStyle(font: timesBold, fontSize: 14)),
-                      pw.Text('Languages: $_languages', style: pw.TextStyle(font: timesRegular, fontSize: 10)),
-                      pw.Text('Interface: $_interface', style: pw.TextStyle(font: timesRegular, fontSize: 10)),
-                      pw.Text('Database: $_database', style: pw.TextStyle(font: timesRegular, fontSize: 10)),
-                      pw.Text('Tools: $_tools', style: pw.TextStyle(font: timesRegular, fontSize: 10)),
+                      pw.Text(
+                        'SKILLS',
+                        style: pw.TextStyle(
+                          font: timesBold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      pw.Text(
+                        'Languages: $_languages',
+                        style: pw.TextStyle(
+                          font: timesRegular,
+                          fontSize: 10,
+                        ),
+                      ),
+                      pw.Text(
+                        'Interface: $_interface',
+                        style: pw.TextStyle(
+                          font: timesRegular,
+                          fontSize: 10,
+                        ),
+                      ),
+                      pw.Text(
+                        'Database: $_database',
+                        style: pw.TextStyle(
+                          font: timesRegular,
+                          fontSize: 10,
+                        ),
+                      ),
+                      pw.Text(
+                        'Tools: $_tools',
+                        style: pw.TextStyle(
+                          font: timesRegular,
+                          fontSize: 10,
+                        ),
+                      ),
                       for (var custom in _customSkills)
-                        pw.Text('${custom['heading']}: ${custom['content']}', style: pw.TextStyle(font: timesRegular, fontSize: 10)),
+                        pw.Text(
+                          '${custom['heading']}: ${custom['content']}',
+                          style: pw.TextStyle(
+                            font: timesRegular,
+                            fontSize: 10,
+                          ),
+                        ),
                       pw.SizedBox(height: 12),
-                      pw.Text('HOBBIES', style: pw.TextStyle(font: timesBold, fontSize: 14)),
-                      pw.Text(_hobbies, style: pw.TextStyle(font: timesRegular, fontSize: 10)),
+                      pw.Text(
+                        'HOBBIES',
+                        style: pw.TextStyle(
+                          font: timesBold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      pw.Text(
+                        _hobbies,
+                        style: pw.TextStyle(
+                          font: timesRegular,
+                          fontSize: 10,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -273,37 +527,104 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('SUMMARY', style: pw.TextStyle(font: timesBold, fontSize: 14)),
-                    pw.Text(_summary, style: pw.TextStyle(font: timesRegular, fontSize: 10)),
+                    pw.Text(
+                      'SUMMARY',
+                      style: pw.TextStyle(
+                        font: timesBold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    pw.Text(
+                      _summary,
+                      style: pw.TextStyle(
+                        font: timesRegular,
+                        fontSize: 10,
+                      ),
+                    ),
                     pw.SizedBox(height: 12),
-                    pw.Text('EDUCATION', style: pw.TextStyle(font: timesBold, fontSize: 14)),
+                    pw.Text(
+                      'EDUCATION',
+                      style: pw.TextStyle(
+                        font: timesBold,
+                        fontSize: 14,
+                      ),
+                    ),
                     pw.Text(
                       'Bachelor of Engineering - Artificial Intelligence and Machine Learning $_beYear CGPA: $_beCgpa\n$_beCollege',
-                      style: pw.TextStyle(font: timesRegular, fontSize: 10),
+                      style: pw.TextStyle(
+                        font: timesRegular,
+                        fontSize: 10,
+                      ),
                     ),
                     if (_hasDiploma)
                       pw.Text(
                         'Diploma $_diplomaYear Percentage: $_diplomaPercentage\n$_diplomaCollege',
-                        style: pw.TextStyle(font: timesRegular, fontSize: 10),
+                        style: pw.TextStyle(
+                          font: timesRegular,
+                          fontSize: 10,
+                        ),
                       ),
                     if (!_hasDiploma)
                       pw.Text(
                         'Senior Secondary (12th) $_puYear Percentage: $_puPercentage\n$_puCollege',
-                        style: pw.TextStyle(font: timesRegular, fontSize: 10),
+                        style: pw.TextStyle(
+                          font: timesRegular,
+                          fontSize: 10,
+                        ),
                       ),
                     pw.Text(
                       'Secondary School (SSLC) $_sslcYear Percentage: $_sslcPercentage\n$_sslcSchool',
-                      style: pw.TextStyle(font: timesRegular, fontSize: 10),
+                      style: pw.TextStyle(
+                        font: timesRegular,
+                        fontSize: 10,
+                      ),
                     ),
                     pw.SizedBox(height: 12),
-                    pw.Text('INTERNSHIP', style: pw.TextStyle(font: timesBold, fontSize: 14)),
-                    pw.Text(_internship, style: pw.TextStyle(font: timesRegular, fontSize: 10)),
+                    pw.Text(
+                      'INTERNSHIP',
+                      style: pw.TextStyle(
+                        font: timesBold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    pw.Text(
+                      _internship,
+                      style: pw.TextStyle(
+                        font: timesRegular,
+                        fontSize: 10,
+                      ),
+                    ),
                     pw.SizedBox(height: 12),
-                    pw.Text('PROJECTS', style: pw.TextStyle(font: timesBold, fontSize: 14)),
-                    pw.Text(_projects, style: pw.TextStyle(font: timesRegular, fontSize: 10)),
+                    pw.Text(
+                      'PROJECTS',
+                      style: pw.TextStyle(
+                        font: timesBold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    pw.Text(
+                      _projects,
+                      style: pw.TextStyle(
+                        font: timesRegular,
+                        fontSize: 10,
+                        lineSpacing: 1.5,
+                      ),
+                    ),
                     pw.SizedBox(height: 12),
-                    pw.Text('COURSES', style: pw.TextStyle(font: timesBold, fontSize: 14)),
-                    pw.Text(_courses, style: pw.TextStyle(font: timesRegular, fontSize: 10)),
+                    pw.Text(
+                      'COURSES',
+                      style: pw.TextStyle(
+                        font: timesBold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    pw.Text(
+                      _courses,
+                      style: pw.TextStyle(
+                        font: timesRegular,
+                        fontSize: 10,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -318,22 +639,27 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
       final pdfBytes = await pdf.save();
       // Encode PDF to base64
       final base64Data = base64Encode(pdfBytes);
+      // Generate filename
+      final originalFileName = 'resume_${widget.usn}_${_selectedFormat}.pdf';
 
       // Save resume to backend
       await ResumeService.saveResume(
         usn: widget.usn,
-        format: _selectedFormat,
-        data: base64Data, // Send base64-encoded PDF
+        pdfData: base64Data,
+        originalFileName: originalFileName,
       );
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Resume saved successfully')),
+        SnackBar(content: Text('Resume saved successfully: $originalFileName')),
       );
 
       // Save PDF locally and share
       final outputDir = await getTemporaryDirectory();
-      final file = File('${outputDir.path}/resume_${widget.usn}.pdf');
+      final file = File('${outputDir.path}/$originalFileName');
       await file.writeAsBytes(pdfBytes);
-      await Printing.sharePdf(bytes: pdfBytes, filename: 'resume_${widget.usn}.pdf');
+      await Printing.sharePdf(
+        bytes: pdfBytes,
+        filename: originalFileName,
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('PDF generated and ready for download')),
       );
@@ -352,6 +678,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
     }
   }
 
+  // ... Rest of the file remains unchanged ...
+
+
   Widget _buildPreview(String format) {
     return Card(
       elevation: 4,
@@ -369,11 +698,15 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
           child: Column(
             children: [
               Text(
-                format == 'college' ? 'College Format (Recommended)' : 'General Format',
+                format == 'college'
+                    ? 'College Format (Recommended)'
+                    : 'General Format',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: format == _selectedFormat ? Colors.indigo : Colors.black87,
+                  color: format == _selectedFormat
+                      ? Colors.indigo
+                      : Colors.black87,
                 ),
               ),
               const SizedBox(height: 8),
@@ -385,7 +718,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                   borderRadius: BorderRadius.circular(8),
                   color: Colors.white,
                 ),
-                child: format == 'college' ? _buildCollegePreview() : _buildGeneralPreview(),
+                child: format == 'college'
+                    ? _buildCollegePreview()
+                    : _buildGeneralPreview(),
               ),
               const SizedBox(height: 8),
               Text(
@@ -412,38 +747,119 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Text('Name', style: TextStyle(fontFamily: 'Times', fontWeight: FontWeight.bold, fontSize: 16)),
+                child: Text(
+                  'Name',
+                  style: TextStyle(
+                    fontFamily: 'Times',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
               ),
               Container(
                 width: 40,
                 height: 40,
-                decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.grey),
-                child: const Icon(Icons.person, size: 20, color: Colors.white),
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.grey,
+                ),
+                child: const Icon(
+                  Icons.person,
+                  size: 20,
+                  color: Colors.white,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 6),
-          const Text('Email | Phone | GitHub | Address', style: TextStyle(fontFamily: 'Times', fontSize: 8)),
+          const Text(
+            'Email | Phone | GitHub | Address',
+            style: TextStyle(
+              fontFamily: 'Times',
+              fontSize: 8,
+            ),
+          ),
           const SizedBox(height: 8),
-          const Text('SUMMARY', style: TextStyle(fontFamily: 'Times', fontWeight: FontWeight.bold, fontSize: 10)),
+          const Text(
+            'SUMMARY',
+            style: TextStyle(
+              fontFamily: 'Times',
+              fontWeight: FontWeight.bold,
+              fontSize: 10,
+            ),
+          ),
           Container(height: 10, color: Colors.grey.shade200),
           const SizedBox(height: 8),
-          const Text('EDUCATION', style: TextStyle(fontFamily: 'Times', fontWeight: FontWeight.bold, fontSize: 10)),
-          const Text('B.E. | 12th | SSLC', style: TextStyle(fontFamily: 'Times', fontSize: 8)),
+          const Text(
+            'EDUCATION',
+            style: TextStyle(
+              fontFamily: 'Times',
+              fontWeight: FontWeight.bold,
+              fontSize: 10,
+            ),
+          ),
+          const Text(
+            'B.E. | 12th | SSLC',
+            style: TextStyle(
+              fontFamily: 'Times',
+              fontSize: 8,
+            ),
+          ),
           const SizedBox(height: 8),
-          const Text('SKILLS', style: TextStyle(fontFamily: 'Times', fontWeight: FontWeight.bold, fontSize: 10)),
-          const Text('Languages | Interface | Database | Tools', style: TextStyle(fontFamily: 'Times', fontSize: 8)),
+          const Text(
+            'SKILLS',
+            style: TextStyle(
+              fontFamily: 'Times',
+              fontWeight: FontWeight.bold,
+              fontSize: 10,
+            ),
+          ),
+          const Text(
+            'Languages | Interface | Database | Tools',
+            style: TextStyle(
+              fontFamily: 'Times',
+              fontSize: 8,
+            ),
+          ),
           const SizedBox(height: 8),
-          const Text('INTERNSHIP', style: TextStyle(fontFamily: 'Times', fontWeight: FontWeight.bold, fontSize: 10)),
+          const Text(
+            'INTERNSHIP',
+            style: TextStyle(
+              fontFamily: 'Times',
+              fontWeight: FontWeight.bold,
+              fontSize: 10,
+            ),
+          ),
           Container(height: 10, color: Colors.grey.shade200),
           const SizedBox(height: 8),
-          const Text('PROJECTS', style: TextStyle(fontFamily: 'Times', fontWeight: FontWeight.bold, fontSize: 10)),
+          const Text(
+            'PROJECTS',
+            style: TextStyle(
+              fontFamily: 'Times',
+              fontWeight: FontWeight.bold,
+              fontSize: 10,
+            ),
+          ),
           Container(height: 10, color: Colors.grey.shade200),
           const SizedBox(height: 8),
-          const Text('COURSES', style: TextStyle(fontFamily: 'Times', fontWeight: FontWeight.bold, fontSize: 10)),
+          const Text(
+            'COURSES',
+            style: TextStyle(
+              fontFamily: 'Times',
+              fontWeight: FontWeight.bold,
+              fontSize: 10,
+            ),
+          ),
           Container(height: 10, color: Colors.grey.shade200),
           const SizedBox(height: 8),
-          const Text('HOBBIES', style: TextStyle(fontFamily: 'Times', fontWeight: FontWeight.bold, fontSize: 10)),
+          const Text(
+            'HOBBIES',
+            style: TextStyle(
+              fontFamily: 'Times',
+              fontWeight: FontWeight.bold,
+              fontSize: 10,
+            ),
+          ),
           Container(height: 10, color: Colors.grey.shade200),
         ],
       ),
@@ -462,20 +878,48 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                const Text(
+                  'Name',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Container(
                   width: 30,
                   height: 30,
-                  decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.grey),
-                  child: const Icon(Icons.person, size: 15, color: Colors.white),
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.grey,
+                  ),
+                  child: const Icon(
+                    Icons.person,
+                    size: 15,
+                    color: Colors.white,
+                  ),
                 ),
-                const Text('Contact', style: TextStyle(fontSize: 8)),
+                const Text(
+                  'Contact',
+                  style: TextStyle(fontSize: 8),
+                ),
                 const SizedBox(height: 4),
-                const Text('Skills', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 8)),
+                const Text(
+                  'Skills',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 8,
+                  ),
+                ),
                 Container(height: 20, color: Colors.grey.shade200),
                 const SizedBox(height: 4),
-                const Text('Hobbies', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 8)),
+                const Text(
+                  'Hobbies',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 8,
+                  ),
+                ),
                 Container(height: 20, color: Colors.grey.shade200),
               ],
             ),
@@ -488,19 +932,49 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Summary', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 8)),
+                const Text(
+                  'Summary',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 8,
+                  ),
+                ),
                 Container(height: 20, color: Colors.grey.shade200),
                 const SizedBox(height: 4),
-                const Text('Education', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 8)),
+                const Text(
+                  'Education',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 8,
+                  ),
+                ),
                 Container(height: 20, color: Colors.grey.shade200),
                 const SizedBox(height: 4),
-                const Text('Internship', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 8)),
+                const Text(
+                  'Internship',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 8,
+                  ),
+                ),
                 Container(height: 20, color: Colors.grey.shade200),
                 const SizedBox(height: 4),
-                const Text('Projects', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 8)),
+                const Text(
+                  'Projects',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 8,
+                  ),
+                ),
                 Container(height: 20, color: Colors.grey.shade200),
                 const SizedBox(height: 4),
-                const Text('Courses', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 8)),
+                const Text(
+                  'Courses',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 8,
+                  ),
+                ),
                 Container(height: 20, color: Colors.grey.shade200),
               ],
             ),
@@ -522,7 +996,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                 initialValue: _name,
                 decoration: InputDecoration(
                   labelText: 'Full Name',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -534,7 +1010,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                 initialValue: _email,
                 decoration: InputDecoration(
                   labelText: 'Email',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -546,7 +1024,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                 initialValue: _phone,
                 decoration: InputDecoration(
                   labelText: 'Phone Number',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -558,7 +1038,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                 initialValue: _github,
                 decoration: InputDecoration(
                   labelText: 'GitHub URL',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -569,7 +1051,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                 initialValue: _address,
                 decoration: InputDecoration(
                   labelText: 'Address',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -580,7 +1064,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                 initialValue: _summary,
                 decoration: InputDecoration(
                   labelText: 'Summary',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -594,7 +1080,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                 initialValue: _sslcSchool,
                 decoration: InputDecoration(
                   labelText: 'SSLC School Name',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -606,7 +1094,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                 initialValue: _sslcYear,
                 decoration: InputDecoration(
                   labelText: 'SSLC Year (e.g., 2018-2019)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -618,7 +1108,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                 initialValue: _sslcPercentage,
                 decoration: InputDecoration(
                   labelText: 'SSLC Percentage (e.g., 88%)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -641,7 +1133,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                   initialValue: _puCollege,
                   decoration: InputDecoration(
                     labelText: '12th College Name',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     filled: true,
                     fillColor: Colors.grey.shade50,
                   ),
@@ -653,7 +1147,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                   initialValue: _puYear,
                   decoration: InputDecoration(
                     labelText: '12th Year (e.g., 2019-2021)',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     filled: true,
                     fillColor: Colors.grey.shade50,
                   ),
@@ -665,7 +1161,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                   initialValue: _puPercentage,
                   decoration: InputDecoration(
                     labelText: '12th Percentage (e.g., 89%)',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     filled: true,
                     fillColor: Colors.grey.shade50,
                   ),
@@ -678,7 +1176,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                   initialValue: _diplomaCollege,
                   decoration: InputDecoration(
                     labelText: 'Diploma College Name',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     filled: true,
                     fillColor: Colors.grey.shade50,
                   ),
@@ -690,7 +1190,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                   initialValue: _diplomaYear,
                   decoration: InputDecoration(
                     labelText: 'Diploma Year (e.g., 2019-2021)',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     filled: true,
                     fillColor: Colors.grey.shade50,
                   ),
@@ -702,7 +1204,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                   initialValue: _diplomaPercentage,
                   decoration: InputDecoration(
                     labelText: 'Diploma Percentage (e.g., 85%)',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     filled: true,
                     fillColor: Colors.grey.shade50,
                   ),
@@ -716,7 +1220,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                 initialValue: _beCollege,
                 decoration: InputDecoration(
                   labelText: 'B.E. College Name',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -728,7 +1234,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                 initialValue: _beYear,
                 decoration: InputDecoration(
                   labelText: 'B.E. Year (e.g., 2021-Present)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -740,7 +1248,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                 initialValue: _beCgpa,
                 decoration: InputDecoration(
                   labelText: 'B.E. CGPA (e.g., 8.55)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -753,7 +1263,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                 initialValue: _languages,
                 decoration: InputDecoration(
                   labelText: 'Languages (e.g., Java, Python, C)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -765,7 +1277,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                 initialValue: _interface,
                 decoration: InputDecoration(
                   labelText: 'Interface (e.g., HTML, CSS)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -777,7 +1291,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                 initialValue: _database,
                 decoration: InputDecoration(
                   labelText: 'Database (e.g., Firebase, SQL)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -789,7 +1305,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                 initialValue: _tools,
                 decoration: InputDecoration(
                   labelText: 'Tools (e.g., MySQL, VS Code, Jupyter)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -809,11 +1327,14 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                             initialValue: _customSkills[index]['heading'],
                             decoration: InputDecoration(
                               labelText: 'Custom Skill Heading',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                               filled: true,
                               fillColor: Colors.grey.shade50,
                             ),
-                            onSaved: (value) => _customSkills[index]['heading'] = value!,
+                            onSaved: (value) =>
+                                _customSkills[index]['heading'] = value!,
                           ),
                         ),
                         IconButton(
@@ -831,11 +1352,14 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                       initialValue: _customSkills[index]['content'],
                       decoration: InputDecoration(
                         labelText: 'Custom Skill Content',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                         filled: true,
                         fillColor: Colors.grey.shade50,
                       ),
-                      onSaved: (value) => _customSkills[index]['content'] = value!,
+                      onSaved: (value) =>
+                          _customSkills[index]['content'] = value!,
                     ),
                     const SizedBox(height: 12),
                   ],
@@ -853,8 +1377,11 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
               TextFormField(
                 initialValue: _internship,
                 decoration: InputDecoration(
-                  labelText: 'Internship (e.g., Niveus Solutions | Android App Developer | Oct 2023 - Nov 2023\nProject: ...)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  labelText:
+                      'Internship (e.g., Niveus Solutions | Android App Developer | Oct 2023 - Nov 2023\nProject: ...)',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -865,8 +1392,11 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
               TextFormField(
                 initialValue: _projects,
                 decoration: InputDecoration(
-                  labelText: 'Projects (e.g., Automobile Review System | Jan 2023 - Mar 2024\nTechnologies: ...)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  labelText:
+                      'Projects (e.g., Automobile Review System | Jan 2023 - Mar 2024\nTechnologies: ...)',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -878,7 +1408,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                 initialValue: _courses,
                 decoration: InputDecoration(
                   labelText: 'Courses (e.g., Cloud Computing, NPTEL, 2023)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -890,7 +1422,9 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                 initialValue: _hobbies,
                 decoration: InputDecoration(
                   labelText: 'Hobbies (e.g., Playing Mobile Games)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -905,13 +1439,21 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
               if (_photoFile != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Image.file(_photoFile!, height: 100, width: 100, fit: BoxFit.cover),
+                  child: Image.file(
+                    _photoFile!,
+                    height: 100,
+                    width: 100,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               const SizedBox(height: 16),
               if (_errorMessage.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16.0),
-                  child: Text(_errorMessage, style: const TextStyle(color: Colors.red)),
+                  child: Text(
+                    _errorMessage,
+                    style: const TextStyle(color: Colors.red),
+                  ),
                 ),
               ElevatedButton(
                 onPressed: _isLoading
@@ -924,12 +1466,23 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                       },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.indigo,
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Generate PDF', style: TextStyle(color: Colors.white, fontSize: 16)),
+                    : const Text(
+                        'Generate PDF',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                        ),
+                      ),
               ),
             ],
           ),
@@ -958,7 +1511,11 @@ class _ResumeBuilderScreenState extends State<ResumeBuilderScreen> {
                     children: [
                       const Text(
                         'Choose a Resume Format',
-                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.indigo),
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.indigo,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _buildPreview('college'),

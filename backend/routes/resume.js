@@ -1,159 +1,138 @@
 const express = require('express');
 const router = express.Router();
-const Resume = require('../models/Resume');
+const Resume = require('../models/resume');
 const { authenticate } = require('../middleware/authenticate');
 const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
 
-router.post('/', authenticate, async (req, res) => {
+router.post('/custom', authenticate, async (req, res) => {
   try {
-    const { usn, format, data } = req.body;
-
-    if (!usn || !format || !data) {
-      return res.status(400).json({ message: 'USN, format, and data are required' });
+    const { usn, pdfData, originalFileName } = req.body;
+    if (!usn || !pdfData || !originalFileName) {
+      return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    if (!['custom'].includes(format)) {
-      return res.status(400).json({ message: 'Invalid resume format' });
+    // Validate base64 data
+    if (!pdfData.startsWith('data:application/pdf;base64,')) {
+      return res.status(400).json({ message: 'Invalid PDF data format' });
     }
 
-    let fileBuffer;
+    // Enforce 3-resume limit
+    const resumeCount = await Resume.countDocuments({ usn });
+    if (resumeCount >= 3) {
+      return res.status(403).json({ message: 'Resume limit reached (3). Please delete an existing resume.' });
+    }
+
+    // Decode base64 data
+    const base64Data = pdfData.replace(/^data:application\/pdf;base64,/, '');
+    let buffer;
     try {
-      fileBuffer = Buffer.from(data, 'base64');
-      const fileHash = crypto.createHash('md5').update(fileBuffer).digest('hex');
-      console.log('DEBUG: File buffer size:', fileBuffer.length, 'bytes');
-      console.log('DEBUG: File content hash:', fileHash);
+      buffer = Buffer.from(base64Data, 'base64');
     } catch (error) {
-      console.error('DEBUG: Error decoding base64:', error);
+      console.error('Invalid base64 data:', error);
       return res.status(400).json({ message: 'Invalid base64 data' });
     }
+    const contentHash = crypto.createHash('md5').update(buffer).digest('hex');
 
-    if (fileBuffer.slice(0, 4).toString() !== '%PDF') {
-      return res.status(400).json({ message: 'Invalid PDF file' });
+    // Check for duplicate content
+    const existingResume = await Resume.findOne({ usn, contentHash });
+    if (existingResume) {
+      return res.status(400).json({ message: 'This resume content has already been uploaded' });
     }
 
+    // Generate unique filename for storage
     const timestamp = Date.now();
-    const fileName = `${usn}_${timestamp}.pdf`;
-    const filePath = path.join(__dirname, '..', 'uploads', 'resumes', fileName);
-    const relativeFilePath = `/Uploads/resumes/${fileName}`; // Match case with your folder
+    const sanitizedFileName = `${usn}_${timestamp}.pdf`;
+    const filePath = `/uploads/resumes/${sanitizedFileName}`;
+    const absolutePath = path.join(__dirname, '../public/uploads/resumes', sanitizedFileName);
 
+    // Save file
+    await fs.mkdir(path.dirname(absolutePath), { recursive: true });
+    await fs.writeFile(absolutePath, buffer);
+
+    // Verify file was saved
     try {
-      await fs.mkdir(path.dirname(filePath), { recursive: true });
-      console.log('DEBUG: Directory ensured:', path.dirname(filePath));
+      await fs.access(absolutePath);
     } catch (error) {
-      console.error('DEBUG: Error creating directory:', error);
-      return res.status(500).json({ message: 'Failed to create upload directory' });
+      console.error('Failed to save file:', error);
+      return res.status(500).json({ message: 'Failed to save file on server' });
     }
 
-    const existingResume = await Resume.findOne({ usn });
-    if (existingResume && existingResume.filePath) {
-      const oldFilePath = path.join(__dirname, '..', existingResume.filePath);
-      try {
-        await fs.access(oldFilePath);
-        console.log('DEBUG: Old file exists, deleting:', oldFilePath);
-        await fs.unlink(oldFilePath);
-        console.log('DEBUG: Old file deleted successfully');
-      } catch (error) {
-        if (error.code === 'ENOENT') {
-          console.log('DEBUG: Old file not found, skipping deletion:', oldFilePath);
-        } else {
-          console.error('DEBUG: Error deleting old file:', error);
-          return res.status(500).json({ message: 'Failed to delete old resume file' });
-        }
-      }
-    }
-
-    try {
-      await fs.writeFile(filePath, fileBuffer);
-      console.log('DEBUG: New file saved:', filePath);
-      const stats = await fs.stat(filePath);
-      console.log('DEBUG: Saved file size:', stats.size, 'bytes');
-    } catch (error) {
-      console.error('DEBUG: Error saving new file:', error);
-      return res.status(500).json({ message: 'Failed to save new resume file' });
-    }
-
-    try {
-      await fs.access(filePath);
-      console.log('DEBUG: New file verified:', filePath);
-    } catch (error) {
-      console.error('DEBUG: Error verifying new file:', error);
-      return res.status(500).json({ message: 'Failed to verify new resume file' });
-    }
-
-    const updatedResume = await Resume.findOneAndUpdate(
-      { usn },
-      {
-        usn,
-        format,
-        filePath: relativeFilePath,
-        updatedAt: new Date(),
-      },
-      {
-        upsert: true,
-        new: true,
-        setDefaultsOnInsert: true,
-      }
-    );
-
-    console.log('DEBUG: Updated resume document:', updatedResume);
-
-    res.status(201).json({
-      message: 'Resume saved successfully',
-      resume: {
-        id: updatedResume._id,
-        usn: updatedResume.usn,
-        format: updatedResume.format,
-        filePath: relativeFilePath,
-        updatedAt: updatedResume.updatedAt,
-      },
+    // Save resume to MongoDB
+    const resume = new Resume({
+      usn,
+      filePath,
+      originalFileName,
+      contentHash,
+      format: 'custom',
+      isActive: true,
     });
+
+    await resume.save();
+    res.status(201).json({ message: 'Resume saved successfully', resume });
   } catch (error) {
-    console.error('DEBUG: Error saving resume:', error);
-    if (error.code === 11000) {
-      return res.status(400).json({ message: 'Resume already exists for this USN' });
+    console.error('Error saving resume:', error);
+    res.status(500).json({ message: `Server error: ${error.message}` });
+  }
+});
+
+router.put('/:id/active', authenticate, async (req, res) => {
+  try {
+    const resumeId = req.params.id;
+    const user = req.user;
+
+    // Find resume
+    const resume = await Resume.findOne({ _id: resumeId, usn: user.usn });
+    if (!resume) {
+      return res.status(404).json({ message: 'Resume not found' });
     }
-    res.status(500).json({ message: 'Server error' });
+
+    // Update isActive without triggering full validation
+    await Resume.updateMany({ usn: user.usn, isActive: true }, { $set: { isActive: false } });
+    await Resume.updateOne({ _id: resumeId }, { $set: { isActive: true } });
+
+    const updatedResume = await Resume.findById(resumeId);
+    res.status(200).json({ message: 'Resume set as active', resume: updatedResume });
+  } catch (error) {
+    console.error('Error setting active resume:', error);
+    res.status(500).json({ message: `Server error: ${error.message}` });
   }
 });
 
 router.get('/', authenticate, async (req, res) => {
   try {
-    const resumes = await Resume.find({ usn: req.user.usn });
-    console.log('DEBUG: Fetched resumes:', resumes);
-    res.json(resumes);
+    const resumes = await Resume.find({ usn: req.user.usn }).sort({ updatedAt: -1 });
+    res.status(200).json(resumes);
   } catch (error) {
-    console.error('DEBUG: Error fetching resumes:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error fetching resumes:', error);
+    res.status(500).json({ message: `Server error: ${error.message}` });
   }
 });
 
 router.delete('/:id', authenticate, async (req, res) => {
   try {
-    const resume = await Resume.findOne({ _id: req.params.id, usn: req.user.usn });
+    const resumeId = req.params.id;
+    const resume = await Resume.findOne({ _id: resumeId, usn: req.user.usn });
     if (!resume) {
-      return res.status(400).json({ message: 'Resume not found' });
+      return res.status(404).json({ message: 'Resume not found' });
     }
 
-    const filePath = path.join(__dirname, '..', resume.filePath);
+    // Delete file from filesystem if it exists
+    const absolutePath = path.join(__dirname, '../public', resume.filePath);
     try {
-      await fs.access(filePath);
-      console.log('DEBUG: Deleting resume file:', filePath);
-      await fs.unlink(filePath);
-    } catch (error) {
-      if (error.code !== 'ENOENT') {
-        console.error('DEBUG: Error deleting file:', error);
-        return res.status(500).json({ message: 'Failed to delete resume file' });
-      }
-      console.log('DEBUG: File not found, skipping deletion:', filePath);
+      await fs.access(absolutePath);
+      await fs.unlink(absolutePath);
+    } catch (err) {
+      console.warn('File not found or error deleting file:', err);
     }
 
-    await Resume.deleteOne({ _id: req.params.id });
-    res.json({ message: 'Resume deleted successfully' });
+    // Delete from MongoDB
+    await Resume.deleteOne({ _id: resumeId });
+    res.status(200).json({ message: 'Resume deleted successfully' });
   } catch (error) {
-    console.error('DEBUG: Error deleting resume:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error deleting resume:', error);
+    res.status(500).json({ message: `Server error: ${error.message}` });
   }
 });
 

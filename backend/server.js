@@ -7,7 +7,7 @@ const app = express();
 
 // Middleware
 app.use(cors());
-app.use(express.json({ limit: '10mb' })); // ✅ Set once with size limit
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -16,24 +16,22 @@ const studentRoutes = require('./routes/student');
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
 const placementRoutes = require('./routes/placement');
-const questionBankRoutes = require('./routes/questionbank');  
+const questionBankRoutes = require('./routes/questionbank');
 const resumeRoutes = require('./routes/resume');
 
-// ✅ No need for body-parser — express has built-in support
-// const bodyParser = require('body-parser'); ❌ Remove this
-
 // API Endpoints
-app.use('/api/resumes', resumeRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/auth', authRoutes);
-app.use('/api', profileRoutes);
+app.use('/api/profile', profileRoutes);
 app.use('/api/placements', placementRoutes);
 app.use('/api/questionbank', questionBankRoutes);
+app.use('/api/resume', resumeRoutes);
 
 // MongoDB Connection
 mongoose
   .connect('mongodb://localhost:27017/Campus_connect', {
     useNewUrlParser: true,
+    useUnifiedTopology: true,
   })
   .then(() => console.log('DEBUG: Connected to MongoDB'))
   .catch((err) => console.error('DEBUG: MongoDB connection error:', err));

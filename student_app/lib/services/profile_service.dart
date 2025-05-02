@@ -24,7 +24,9 @@ class ProfileService {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      );
+      ).timeout(const Duration(seconds: 30), onTimeout: () {
+        throw Exception('Request timed out');
+      });
 
       print('DEBUG: Profile fetch response: ${response.statusCode}, ${response.body}');
 
@@ -36,7 +38,12 @@ class ProfileService {
         throw Exception('Unauthorized: Invalid or expired token');
       } else {
         print('DEBUG: Profile fetch failed: ${response.statusCode}, ${response.body}');
-        throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to fetch profile');
+        try {
+          final error = jsonDecode(response.body)['message'] ?? 'Failed to fetch profile';
+          throw Exception(error);
+        } catch (e) {
+          throw Exception('Failed to fetch profile: Server returned invalid response');
+        }
       }
     } catch (e) {
       print('DEBUG: Profile fetch error: $e');
@@ -57,12 +64,14 @@ class ProfileService {
 
     try {
       final response = await http.get(
-        Uri.parse('${dotenv.env['API_URL']}/api/resumes'),
+        Uri.parse('${dotenv.env['API_URL']}/api/resume'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      );
+      ).timeout(const Duration(seconds: 30), onTimeout: () {
+        throw Exception('Request timed out');
+      });
 
       print('DEBUG: Resumes fetch response: ${response.statusCode}, ${response.body}');
 
@@ -85,7 +94,12 @@ class ProfileService {
         return []; // Return empty list if no resumes exist
       } else {
         print('DEBUG: Resumes fetch failed: ${response.statusCode}, ${response.body}');
-        throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to fetch resumes');
+        try {
+          final error = jsonDecode(response.body)['message'] ?? 'Failed to fetch resumes';
+          throw Exception(error);
+        } catch (e) {
+          throw Exception('Failed to fetch resumes: Server returned invalid response');
+        }
       }
     } catch (e) {
       print('DEBUG: Resumes fetch error: $e');
