@@ -24,15 +24,24 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   void initState() {
     super.initState();
-    _emailController.text = '${widget.usn.toLowerCase()}@mite.ac.in';
+    if (widget.usn.isNotEmpty) {
+      _emailController.text = '${widget.usn.toLowerCase()}@mite.ac.in';
+    }
     print('DEBUG: ResetPasswordScreen initialized with USN: ${widget.usn}, isFirstLogin: ${widget.isFirstLogin}');
   }
 
   Future<void> _sendOtp() async {
     final email = _emailController.text.trim().toLowerCase();
-    final expectedEmail = '${widget.usn.toLowerCase()}@mite.ac.in';
+    final expectedEmail = widget.usn.isNotEmpty ? '${widget.usn.toLowerCase()}@mite.ac.in' : '';
     print('DEBUG: Sending OTP for USN: ${widget.usn}, Entered Email: $email, Expected Email: $expectedEmail');
 
+    if (widget.usn.isEmpty) {
+      setState(() {
+        _errorMessage = 'Invalid USN';
+      });
+      print('DEBUG: USN is empty');
+      return;
+    }
     if (email.isEmpty) {
       setState(() {
         _errorMessage = 'Please enter institute email';
@@ -184,6 +193,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       labelText: 'Institute Email',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                       prefixIcon: Icon(Icons.email, color: themeColor),
+                      hintText: 'e.g., 4mt21ai058@mite.ac.in',
                     ),
                     keyboardType: TextInputType.emailAddress,
                   ),

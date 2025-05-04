@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const Placement = require('../models/Placement');
 const Company = require('../models/company');
 const Student = require('../models/student');
+const Round = require('../models/Round');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
@@ -17,11 +18,11 @@ const authenticate = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET, { clockTolerance: 86400 });
 
     const student = await Student.findOne({ 
       usn: decoded.usn,
-      _id: decoded.studentId
+      _id: decoded.studentId // Use studentId from token
     });
 
     if (!student) {
@@ -37,20 +38,44 @@ const authenticate = async (req, res, next) => {
   }
 };
 
-// Placement endpoints
+// Helper function to format placement data
+const formatPlacement = (p) => {
+  const today = new Date();
+  let status = 'upcoming';
+  if (p.placementDate < today) {
+    status = 'completed';
+  } else if (p.placementDate.toDateString() === today.toDateString()) {
+    status = 'ongoing';
+  }
+
+  return {
+    _id: p._id.toString(),
+    company: p.companyId ? p.companyId.name : p.companyName,
+    bannerImage: p.companyId ? p.companyId.bannerImage || '' : '',
+    logo: p.companyId ? p.companyId.logo || '' : '',
+    status,
+    driveDate: p.placementDate.toISOString().split('T')[0],
+    sector: p.companyId ? p.companyId.sector || 'N/A' : 'N/A',
+    jobProfile: p.companyId ? p.companyId.jobProfile || 'N/A' : 'N/A',
+    package: p.companyId ? p.companyId.package || 0 : 0,
+    requiredCgpa: p.companyId ? p.companyId.requiredCgpa || 0 : 0,
+    skills: p.companyId ? p.companyId.skills || [] : [],
+  };
+};
+
+// Fetch Featured Placements
 router.get('/featured', authenticate, async (req, res) => {
   try {
-    const placements = await Placement.find({ placementDate: { $gte: new Date('2025-06-01') } })
-      .populate('companyId', 'name package bannerImage logo')
+    const today = new Date();
+    const threeMonthsLater = new Date(today);
+    threeMonthsLater.setMonth(today.getMonth() + 3);
+    
+    const placements = await Placement.find({ 
+      placementDate: { $gte: today, $lte: threeMonthsLater } 
+    })
+      .populate('companyId')
       .lean();
-    const formattedPlacements = placements.map(p => ({
-      id: p._id.toString(),
-      company: p.companyName,
-      bannerImage: p.companyId ? p.companyId.bannerImage || '' : '',
-      logo: p.companyId ? p.companyId.logo || '' : '',
-      status: 'Featured',
-      driveDate: p.placementDate.toISOString().split('T')[0],
-    }));
+    const formattedPlacements = placements.map(formatPlacement);
     console.log(`DEBUG: Fetched ${formattedPlacements.length} featured placements`);
     res.status(200).json(formattedPlacements);
   } catch (error) {
@@ -59,24 +84,19 @@ router.get('/featured', authenticate, async (req, res) => {
   }
 });
 
+// Fetch Ongoing Placements
 router.get('/ongoing', authenticate, async (req, res) => {
   try {
     const today = new Date();
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+    
     const placements = await Placement.find({ 
-      placementDate: { $gte: startOfMonth, $lte: endOfMonth } 
+      placementDate: { $gte: startOfDay, $lte: endOfDay } 
     })
-      .populate('companyId', 'name package bannerImage logo')
+      .populate('companyId')
       .lean();
-    const formattedPlacements = placements.map(p => ({
-      id: p._id.toString(),
-      company: p.companyName,
-      bannerImage: p.companyId ? p.companyId.bannerImage || '' : '',
-      logo: p.companyId ? p.companyId.logo || '' : '',
-      status: 'Ongoing',
-      driveDate: p.placementDate.toISOString().split('T')[0],
-    }));
+    const formattedPlacements = placements.map(formatPlacement);
     console.log(`DEBUG: Fetched ${formattedPlacements.length} ongoing placements`);
     res.status(200).json(formattedPlacements);
   } catch (error) {
@@ -85,43 +105,130 @@ router.get('/ongoing', authenticate, async (req, res) => {
   }
 });
 
+// Fetch Upcoming Placements
 router.get('/upcoming', authenticate, async (req, res) => {
   try {
+    const today = new Date();
     const placements = await Placement.find({
-      placementDate: { $gte: new Date() },
-    }).populate('companyId');
-    const formattedPlacements = placements.map(p => ({
-      id: p._id.toString(),
-      company: p.companyName,
-      bannerImage: p.companyId ? p.companyId.bannerImage || '' : '',
-      logo: p.companyId ? p.companyId.logo || '' : '',
-      status: 'Upcoming',
-      driveDate: p.placementDate.toISOString().split('T')[0],
-    }));
-    res.json(formattedPlacements);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+      placementDate: { $gt: today },
+    })
+      .populate('companyId')
+      .lean();
+    const formattedPlacements = placements.map(formatPlacement);
+    console.log(`DEBUG: Fetched ${formattedPlacements.length} upcoming placements`);
+    res.status(200).json(formattedPlacements);
+  } catch (error) {
+    console.error('Error fetching upcoming placements:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
+// Fetch Completed Placements
 router.get('/completed', authenticate, async (req, res) => {
   try {
-    const placements = await Placement.find({ placementDate: { $lt: new Date('2025-05-01') } })
-      .populate('companyId', 'name package bannerImage logo')
+    const today = new Date();
+    const placements = await Placement.find({ 
+      placementDate: { $lt: today } 
+    })
+      .populate('companyId')
       .lean();
-    const formattedPlacements = placements.map(p => ({
-      id: p._id.toString(),
-      company: p.companyName,
-      bannerImage: p.companyId ? p.companyId.bannerImage || '' : '',
-      logo: p.companyId ? p.companyId.logo || '' : '',
-      status: 'Completed',
-      driveDate: p.placementDate.toISOString().split('T')[0],
-    }));
+    const formattedPlacements = placements.map(formatPlacement);
     console.log(`DEBUG: Fetched ${formattedPlacements.length} completed placements`);
     res.status(200).json(formattedPlacements);
   } catch (error) {
     console.error('Error fetching completed placements:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Fetch Round Status for Ongoing Drives
+router.get('/:placementId/round-status', authenticate, async (req, res) => {
+  try {
+    const studentId = req.student._id;
+    const rounds = await Round.find({ placementId: req.params.placementId })
+      .sort({ roundNumber: -1 })
+      .limit(1);
+    if (!rounds.length) {
+      return res.status(404).json({ message: 'No rounds found' });
+    }
+    const currentRound = rounds[0];
+    const isShortlisted = currentRound.shortlistedStudents.includes(studentId);
+    res.json({
+      currentRound: currentRound.roundName,
+      isShortlisted,
+    });
+    console.log(`DEBUG: Fetched round status for placement ${req.params.placementId}`);
+  } catch (error) {
+    console.error('Error fetching round status:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Check Application Status for Upcoming Drives
+router.get('/:placementId/application-status', authenticate, async (req, res) => {
+  try {
+    const studentId = req.student._id;
+    const placement = await Placement.findById(req.params.placementId);
+    if (!placement) {
+      return res.status(404).json({ message: 'Placement not found' });
+    }
+    const company = await Company.findById(placement.companyId);
+    if (!company) {
+      return res.status(404).json({ message: 'Company not found' });
+    }
+    const hasApplied = company.studentsApplied.includes(studentId);
+    res.json({ hasApplied });
+    console.log(`DEBUG: Checked application status for placement ${req.params.placementId}`);
+  } catch (error) {
+    console.error('Error checking application status:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Apply for an Upcoming Drive
+router.post('/:placementId/apply', authenticate, async (req, res) => {
+  try {
+    const studentId = req.student._id;
+    const placement = await Placement.findById(req.params.placementId);
+    if (!placement) {
+      return res.status(404).json({ message: 'Placement not found' });
+    }
+    const company = await Company.findById(placement.companyId);
+    if (!company) {
+      return res.status(404).json({ message: 'Company not found' });
+    }
+    if (company.placementStatus !== 'upcoming') {
+      return res.status(400).json({ message: 'Cannot apply to non-upcoming drives' });
+    }
+    if (company.studentsApplied.includes(studentId)) {
+      return res.status(400).json({ message: 'Already applied' });
+    }
+    company.studentsApplied.push(studentId);
+    await company.save();
+    res.status(200).json({ message: 'Application successful' });
+    console.log(`DEBUG: Student ${studentId} applied for placement ${req.params.placementId}`);
+  } catch (error) {
+    console.error('Error applying for drive:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Fetch Shortlist Results for Completed Drives
+router.get('/:placementId/shortlist-results', authenticate, async (req, res) => {
+  try {
+    const rounds = await Round.find({ placementId: req.params.placementId })
+      .populate('shortlistedStudents', 'firstName lastName usn');
+    const shortlistedStudents = rounds.reduce((acc, round) => {
+      return [...acc, ...round.shortlistedStudents.map(s => ({
+        firstName: s.firstName,
+        lastName: s.lastName,
+        usn: s.usn
+      }))];
+    }, []);
+    res.json(shortlistedStudents);
+    console.log(`DEBUG: Fetched shortlist results for placement ${req.params.placementId}`);
+  } catch (error) {
+    console.error('Error fetching shortlist results:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

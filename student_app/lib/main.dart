@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:student_app/screens/profile_screen.dart';
-import 'package:student_app/screens/resume_builder_screen.dart';
-import 'services/auth_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/reset_password.dart';
+import 'screens/profile_screen.dart';
 import 'screens/questionbanks_screen.dart';
+import 'screens/resume_builder_screen.dart';
+import 'services/auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,21 +28,19 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const HomeScreen(),
         '/profile': (context) => const ProfileScreen(),
         '/question-banks': (context) => const QuestionBanksScreen(),
-        '/reset-password': (context) => ResetPasswordScreen(
-              usn: ModalRoute.of(context)!.settings.arguments is Map
-                  ? (ModalRoute.of(context)!.settings.arguments as Map)['usn'] ?? ''
-                  : '',
-              isFirstLogin: ModalRoute.of(context)!.settings.arguments is Map
-                  ? (ModalRoute.of(context)!.settings.arguments as Map)['isFirstLogin'] ?? false
-                  : false,
-            ),
+        '/reset-password': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+          return ResetPasswordScreen(
+            usn: args?['usn'] as String? ?? '',
+            isFirstLogin: args?['isFirstLogin'] as bool? ?? false,
+          );
+        },
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/resume_builder') {
           final args = settings.arguments as Map<String, dynamic>?;
           return MaterialPageRoute(
             builder: (context) {
-              // Fetch usn from AuthService or arguments
               return FutureBuilder<Map<String, dynamic>>(
                 future: AuthService().checkSession(),
                 builder: (context, snapshot) {
@@ -59,6 +57,17 @@ class MyApp extends StatelessWidget {
           );
         }
         return null;
+      },
+      onUnknownRoute: (settings) {
+        print('DEBUG: Unknown route: ${settings.name}');
+        return MaterialPageRoute(
+          builder: (context) => Scaffold(
+            appBar: AppBar(title: const Text('Route Not Found')),
+            body: Center(
+              child: Text('Error: Route "${settings.name}" not found'),
+            ),
+          ),
+        );
       },
     );
   }

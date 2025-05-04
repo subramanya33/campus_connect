@@ -12,6 +12,8 @@ class ProfileService {
     final token = session['token'];
     final usn = session['usn'];
 
+    print('DEBUG: Fetch profile - Token: ${token != null ? '[HIDDEN]' : null}, USN: $usn, Token length: ${token?.length ?? 0}');
+
     if (token == null || usn == null) {
       print('DEBUG: No session for profile fetch');
       throw Exception('Not logged in');
@@ -31,19 +33,20 @@ class ProfileService {
       print('DEBUG: Profile fetch response: ${response.statusCode}, ${response.body}');
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else if (response.statusCode == 401) {
-        print('DEBUG: Unauthorized profile fetch: ${response.body}');
-        await _sessionService.clearSession();
-        throw Exception('Unauthorized: Invalid or expired token');
-      } else {
-        print('DEBUG: Profile fetch failed: ${response.statusCode}, ${response.body}');
-        try {
-          final error = jsonDecode(response.body)['message'] ?? 'Failed to fetch profile';
-          throw Exception(error);
-        } catch (e) {
-          throw Exception('Failed to fetch profile: Server returned invalid response');
+        final profile = jsonDecode(response.body);
+        // Combine firstName and lastName into fullName for compatibility
+        if (profile['firstName'] != null && profile['lastName'] != null) {
+          profile['fullName'] = '${profile['firstName']} ${profile['lastName']}';
         }
+        return profile;
+      } else {
+        print('DEBUG: Profile fetch failed: ${response.body}');
+        final errorMessage = jsonDecode(response.body)['message'] ?? 'Failed to fetch profile';
+        if (errorMessage == 'Invalid token') {
+          print('DEBUG: Invalid token detected; clearing session');
+          await _sessionService.clearSession();
+        }
+        throw Exception(errorMessage);
       }
     } catch (e) {
       print('DEBUG: Profile fetch error: $e');
@@ -56,6 +59,8 @@ class ProfileService {
     final session = await _sessionService.getSession();
     final token = session['token'];
     final usn = session['usn'];
+
+    print('DEBUG: Fetch resumes - Token: ${token != null ? '[HIDDEN]' : null}, USN: $usn, Token length: ${token?.length ?? 0}');
 
     if (token == null || usn == null) {
       print('DEBUG: No session for resumes fetch');
@@ -77,7 +82,6 @@ class ProfileService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        // Handle single resume object or list
         if (data is List) {
           return List<Map<String, dynamic>>.from(data);
         } else if (data is Map<String, dynamic>) {
@@ -85,21 +89,17 @@ class ProfileService {
         } else {
           return [];
         }
-      } else if (response.statusCode == 401) {
-        print('DEBUG: Unauthorized resumes fetch: ${response.body}');
-        await _sessionService.clearSession();
-        throw Exception('Unauthorized: Invalid or expired token');
       } else if (response.statusCode == 404) {
         print('DEBUG: No resumes found: ${response.body}');
-        return []; // Return empty list if no resumes exist
+        return [];
       } else {
-        print('DEBUG: Resumes fetch failed: ${response.statusCode}, ${response.body}');
-        try {
-          final error = jsonDecode(response.body)['message'] ?? 'Failed to fetch resumes';
-          throw Exception(error);
-        } catch (e) {
-          throw Exception('Failed to fetch resumes: Server returned invalid response');
+        print('DEBUG: Resumes fetch failed: ${response.body}');
+        final errorMessage = jsonDecode(response.body)['message'] ?? 'Failed to fetch resumes';
+        if (errorMessage == 'Invalid token') {
+          print('DEBUG: Invalid token detected; clearing session');
+          await _sessionService.clearSession();
         }
+        throw Exception(errorMessage);
       }
     } catch (e) {
       print('DEBUG: Resumes fetch error: $e');

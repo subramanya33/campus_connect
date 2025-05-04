@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../services/drive_service.dart';
 import '../services/profile_service.dart';
 import '../widgets/custom_drawer.dart';
+import '../screens/DrivesDetailsScreen.dart'; // Import the DriveDetailsScreen (not provided)
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -243,8 +244,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         onTap: () {
           print('DEBUG: Tapped company: ${company['company']}');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Details for ${company['company']} coming soon!')),
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DriveDetailsScreen(drive: company),
+            ),
           );
         },
       ),

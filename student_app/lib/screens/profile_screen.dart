@@ -56,7 +56,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final profile = await ProfileService.fetchStudentProfile();
       setState(() {
         _profile = profile;
-        _fullName = profile['fullName']?.toString() ?? 'Unknown';
+        _fullName = profile['fullName'] ?? '${profile['firstName'] ?? ''} ${profile['lastName'] ?? ''}'.trim();
         _usn = profile['usn']?.toString() ?? '';
         _isLoading = false;
       });
@@ -124,6 +124,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         tempFile.path,
         options: Options(
           headers: {'Authorization': 'Bearer $token'},
+          validateStatus: (status) => status != null && status < 500,
         ),
         onReceiveProgress: (received, total) {
           if (total != -1) {
@@ -132,20 +133,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
         },
       );
 
-      if (await tempFile.exists()) {
-        print('DEBUG: Opening PDF: ${tempFile.path}');
-        final result = await OpenFile.open(tempFile.path);
-        if (result.type != ResultType.done) {
-          throw Exception('Failed to open PDF: ${result.message}');
-        }
-      } else {
+      if (!(await tempFile.exists())) {
         throw Exception('Downloaded file not found');
+      }
+
+      print('DEBUG: Opening PDF: ${tempFile.path}');
+      final result = await OpenFile.open(tempFile.path);
+      if (result.type != ResultType.done) {
+        throw Exception('Failed to open PDF: ${result.message}');
       }
     } catch (e) {
       print('DEBUG: Error downloading/previewing PDF: $e');
+      String errorMessage = 'Failed to preview resume';
+      if (e is DioException && e.response?.statusCode == 404) {
+        errorMessage = 'Resume file not found on server';
+      } else if (e.toString().contains('Not logged in')) {
+        errorMessage = 'Session expired. Please log in again.';
+      }
       _showStyledSnackBar(
         context,
-        message: 'Failed to preview resume: $e',
+        message: errorMessage,
         isError: true,
       );
     }
@@ -590,7 +597,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   child: ClipOval(
                                     child: CachedNetworkImage(
                                       imageUrl:
-                                          '${dotenv.env['API_URL']}/uploads/profile_pics/${_profile?['usn'] ?? 'unknown'}.jpg',
+                                          '${dotenv.env['API_URL']}${_profile?['profilePic'] ?? '/uploads/profile_pics/${_profile?['usn'] ?? 'unknown'}.jpg'}',
                                       width: 110,
                                       height: 110,
                                       fit: BoxFit.cover,
@@ -602,7 +609,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                                 const SizedBox(height: 12),
                                 Text(
-                                  _profile?['fullName']?.toString() ?? 'Unknown',
+                                  _fullName,
                                   style: const TextStyle(
                                     fontSize: 24,
                                     fontWeight: FontWeight.bold,

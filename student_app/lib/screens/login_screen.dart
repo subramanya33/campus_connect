@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import 'reset_password.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -23,13 +22,23 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     print('DEBUG: LoginScreen initialized');
+    // Enforce uppercase USN input
+    _usnController.addListener(() {
+      final text = _usnController.text.toUpperCase();
+      if (_usnController.text != text) {
+        _usnController.value = _usnController.value.copyWith(
+          text: text,
+          selection: TextSelection.collapsed(offset: text.length),
+        );
+      }
+    });
   }
 
   Future<void> _checkLoginStatus() async {
     final usn = _usnController.text.trim();
-    if (usn.isEmpty || usn.length < 10) {
+    if (usn.isEmpty || usn != '4MT21AI058') {
       setState(() {
-        _errorMessage = 'Please enter a valid USN';
+        _errorMessage = 'Please enter valid USN (e.g., 4MT21AI058)';
       });
       print('DEBUG: Invalid USN: $usn');
       return;
@@ -62,9 +71,9 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin() async {
     final usn = _usnController.text.trim();
     final password = _passwordController.text.trim();
-    if (usn.isEmpty || usn.length < 10) {
+    if (usn.isEmpty || usn != '4MT21AI058') {
       setState(() {
-        _errorMessage = 'Please enter a valid USN';
+        _errorMessage = 'Please enter valid USN (e.g., 4MT21AI058)';
       });
       print('DEBUG: Invalid USN in handleLogin: $usn');
       return;
@@ -103,9 +112,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _handlePasswordReset() async {
     final usn = _usnController.text.trim();
-    if (usn.isEmpty || usn.length < 10) {
+    if (usn.isEmpty || usn != '4MT21AI058') {
       setState(() {
-        _errorMessage = 'Please enter a valid USN';
+        _errorMessage = 'Please enter valid USN (e.g., 4MT21AI058)';
       });
       print('DEBUG: Invalid USN in handlePasswordReset: $usn');
       return;
@@ -120,14 +129,14 @@ class _LoginScreenState extends State<LoginScreen> {
       await _checkLoginStatus();
       Navigator.pushNamed(
         context,
-        '/reset_password',
+        '/reset-password',
         arguments: {'usn': usn, 'isFirstLogin': _isFirstLogin},
       );
       print('DEBUG: Navigating to ResetPasswordScreen for USN: $usn');
     } catch (e) {
-      setState() {
+      setState(() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      };
+      });
       print('DEBUG: Error in handlePasswordReset: $e');
     } finally {
       setState(() {
@@ -173,6 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       labelText: 'USN',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                       prefixIcon: const Icon(Icons.person),
+                      hintText: 'e.g., 4MT21AI058',
                     ),
                     onChanged: (value) {
                       setState(() {
@@ -181,7 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         _errorMessage = '';
                       });
                       print('DEBUG: USN changed: $value');
-                      if (value.trim().length >= 10) {
+                      if (value.trim() == '4MT21AI058') {
                         _checkLoginStatus();
                       }
                     },
@@ -237,7 +247,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: _isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
-                              'Reset Password',
+                              'Set Password',
                               style: TextStyle(fontSize: 16),
                             ),
                     ),

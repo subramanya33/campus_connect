@@ -1,6 +1,3 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SessionService {
@@ -45,6 +42,19 @@ class SessionService {
     }
   }
 
+  // Retrieve USN
+  Future<String?> getUsn() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final usn = prefs.getString('usn');
+      print('DEBUG: Retrieved USN: $usn');
+      return usn;
+    } catch (e) {
+      print('DEBUG: Error retrieving USN: $e');
+      return null;
+    }
+  }
+
   // Clear session
   Future<void> clearSession() async {
     try {
@@ -54,51 +64,6 @@ class SessionService {
       print('DEBUG: Session cleared');
     } catch (e) {
       print('DEBUG: Error clearing session: $e');
-    }
-  }
-
-  // Check session with backend (for app startup)
-  Future<Map<String, dynamic>> checkSession() async {
-    final session = await getSession();
-    final token = session['token'];
-    final usn = session['usn'];
-
-    if (token == null || usn == null) {
-      print('DEBUG: No session found');
-      return {'isLoggedIn': false};
-    }
-
-    try {
-      final response = await http.post(
-        Uri.parse('${dotenv.env['API_URL']}/api/auth/check-login-status'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({'usn': usn}),
-      );
-
-      print('DEBUG: Check session response: ${response.statusCode}, ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {
-          'isLoggedIn': true,
-          'usn': data['usn'],
-          'studentId': data['studentId'],
-          'firstLogin': data['firstLogin'],
-        };
-      } else if (response.statusCode == 401) {
-        print('DEBUG: Session invalid (401): ${response.body}');
-        await clearSession();
-        return {'isLoggedIn': false};
-      } else {
-        print('DEBUG: Session check failed: ${response.statusCode}, ${response.body}');
-        return {'isLoggedIn': false}; // Do not clear session on non-401 errors
-      }
-    } catch (e) {
-      print('DEBUG: Session check error: $e');
-      return {'isLoggedIn': false}; // Do not clear session on network errors
     }
   }
 }

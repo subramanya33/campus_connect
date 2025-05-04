@@ -8,13 +8,55 @@ class AuthService {
 
   // Check session with backend (for app startup)
   Future<Map<String, dynamic>> checkSession() async {
-    return await _sessionService.checkSession();
+    try {
+      final session = await _sessionService.getSession();
+      final token = session['token'];
+      final usn = session['usn'];
+      print('DEBUG: Check session - Token: ${token != null ? '[HIDDEN]' : null}, USN: $usn, Token length: ${token?.length ?? 0}');
+
+      if (token == null || usn == null) {
+        print('DEBUG: No session found');
+        return {'isLoggedIn': false};
+      }
+
+      final response = await http.post(
+        Uri.parse('${dotenv.env['API_URL']}/api/auth/check-login-status'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'usn': usn}),
+      );
+
+      print('DEBUG: Check session response: ${response.statusCode}, ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'isLoggedIn': true,
+          'firstLogin': data['firstLogin'] ?? false,
+          'usn': data['usn'] ?? usn,
+          'studentId': data['studentId'] ?? '',
+        };
+      } else if (jsonDecode(response.body)['message'] == 'Invalid token') {
+        print('DEBUG: Invalid token detected; clearing session');
+        await _sessionService.clearSession();
+        return {'isLoggedIn': false};
+      } else {
+        print('DEBUG: Session check failed: ${response.statusCode}, ${response.body}');
+        return {'isLoggedIn': false}; // Do not clear session
+      }
+    } catch (e) {
+      print('DEBUG: Check session error: $e');
+      return {'isLoggedIn': false}; // Do not clear session
+    }
   }
 
   // Check login status (for LoginScreen)
   Future<Map<String, dynamic>> checkLoginStatus(String usn) async {
     try {
-      final token = await _sessionService.getToken();
+      final session = await _sessionService.getSession();
+      final token = session['token'];
       print('DEBUG: Check login status - Token: ${token != null ? '[HIDDEN]' : null}, USN: $usn, Token length: ${token?.length ?? 0}');
 
       final response = await http.post(
@@ -32,6 +74,8 @@ class AuthService {
         final data = jsonDecode(response.body);
         return {
           'firstLogin': data['firstLogin'] ?? false,
+          'usn': data['usn'] ?? usn,
+          'studentId': data['studentId'] ?? '',
         };
       } else {
         throw Exception(jsonDecode(response.body)['message']);
@@ -190,5 +234,44 @@ class AuthService {
   Future<void> logout() async {
     await _sessionService.clearSession();
     print('DEBUG: Logged out');
+  }
+
+  // Fetch drives (generic method for placement APIs)
+  Future<List<dynamic>> fetchDrives(String endpoint) async {
+    try {
+      final session = await _sessionService.getSession();
+      final token = session['token'];
+      final usn = session['usn'];
+      print('DEBUG: Fetch drives - Endpoint: $endpoint, Token: ${token != null ? '[HIDDEN]' : null}, USN: $usn, Token length: ${token?.length ?? 0}');
+
+      if (token == null || usn == null) {
+        throw Exception('Not logged in');
+      }
+
+      final response = await http.get(
+        Uri.parse('${dotenv.env['API_URL']}/api/placements/$endpoint'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      print('DEBUG: $endpoint response: ${response.statusCode}, ${response.body}');
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        final errorMessage = jsonDecode(response.body)['message'];
+        print('DEBUG: $endpoint failed: $errorMessage');
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      print('DEBUG: $endpoint error: $e');
+      if (e.toString().contains('Invalid token')) {
+        print('DEBUG: Invalid token detected in fetchDrives; clearing session');
+        await _sessionService.clearSession();
+      }
+      throw Exception(e.toString().replaceFirst('Exception: ', ''));
+    }
   }
 }

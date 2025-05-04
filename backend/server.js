@@ -1,43 +1,38 @@
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const dotenv = require('dotenv');
 const path = require('path');
 
+dotenv.config();
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 // Routes
-const studentRoutes = require('./routes/student');
-const authRoutes = require('./routes/auth');
-const profileRoutes = require('./routes/profile');
-const placementRoutes = require('./routes/placement');
-const questionBankRoutes = require('./routes/questionbank');
-const resumeRoutes = require('./routes/resume');
-
-// API Endpoints
-app.use('/api/students', studentRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api/profile', profileRoutes);
-app.use('/api/placements', placementRoutes);
-app.use('/api/questionbank', questionBankRoutes);
-app.use('/api/resume', resumeRoutes);
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/placements', require('./routes/placement'));
+app.use('/api/profile', require('./routes/profile'));
+app.use('/api/resume', require('./routes/resume'));
+app.use('/api/questionbank', require('./routes/questionbank'));
 
 // MongoDB Connection
 mongoose
-  .connect('mongodb://localhost:27017/Campus_connect', {
+  .connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => console.log('DEBUG: Connected to MongoDB'))
-  .catch((err) => console.error('DEBUG: MongoDB connection error:', err));
+  .then(() => console.log('MongoDB connected'))
+  .catch((err) => console.error('MongoDB connection error:', err));
 
 // Start Server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`DEBUG: Server running on http://0.0.0.0:${PORT}`);
+const SERVER_HOST = process.env.SERVER_HOST || '0.0.0.0';
+app.listen(PORT, SERVER_HOST, () => {
+  console.log(`Server running on http://${SERVER_HOST}:${PORT}`);
 });
