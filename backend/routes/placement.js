@@ -4,6 +4,7 @@ const Placement = require('../models/Placement');
 const Company = require('../models/company');
 const Student = require('../models/student');
 const Round = require('../models/Round');
+const Application = require('../models/Application');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
@@ -22,7 +23,7 @@ const authenticate = async (req, res, next) => {
 
     const student = await Student.findOne({ 
       usn: decoded.usn,
-      _id: decoded.studentId // Use studentId from token
+      _id: decoded.studentId
     });
 
     if (!student) {
@@ -59,6 +60,7 @@ const formatPlacement = (p) => {
     jobProfile: p.companyId ? p.companyId.jobProfile || 'N/A' : 'N/A',
     package: p.companyId ? p.companyId.package || 0 : 0,
     requiredCgpa: p.companyId ? p.companyId.requiredCgpa || 0 : 0,
+    requiredPercentage: p.companyId ? p.companyId.requiredPercentage || 80.0 : 80.0,
     skills: p.companyId ? p.companyId.skills || [] : [],
   };
 };
@@ -172,43 +174,15 @@ router.get('/:placementId/application-status', authenticate, async (req, res) =>
     if (!placement) {
       return res.status(404).json({ message: 'Placement not found' });
     }
-    const company = await Company.findById(placement.companyId);
-    if (!company) {
-      return res.status(404).json({ message: 'Company not found' });
-    }
-    const hasApplied = company.studentsApplied.includes(studentId);
+    const application = await Application.findOne({
+      placementId: req.params.placementId,
+      studentId,
+    });
+    const hasApplied = !!application;
     res.json({ hasApplied });
-    console.log(`DEBUG: Checked application status for placement ${req.params.placementId}`);
+    console.log(`DEBUG: Checked application status for placement ${req.params.placementId}: hasApplied=${hasApplied}`);
   } catch (error) {
     console.error('Error checking application status:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-// Apply for an Upcoming Drive
-router.post('/:placementId/apply', authenticate, async (req, res) => {
-  try {
-    const studentId = req.student._id;
-    const placement = await Placement.findById(req.params.placementId);
-    if (!placement) {
-      return res.status(404).json({ message: 'Placement not found' });
-    }
-    const company = await Company.findById(placement.companyId);
-    if (!company) {
-      return res.status(404).json({ message: 'Company not found' });
-    }
-    if (company.placementStatus !== 'upcoming') {
-      return res.status(400).json({ message: 'Cannot apply to non-upcoming drives' });
-    }
-    if (company.studentsApplied.includes(studentId)) {
-      return res.status(400).json({ message: 'Already applied' });
-    }
-    company.studentsApplied.push(studentId);
-    await company.save();
-    res.status(200).json({ message: 'Application successful' });
-    console.log(`DEBUG: Student ${studentId} applied for placement ${req.params.placementId}`);
-  } catch (error) {
-    console.error('Error applying for drive:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

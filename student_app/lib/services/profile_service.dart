@@ -106,4 +106,51 @@ class ProfileService {
       throw Exception(e.toString().replaceFirst('Exception: ', ''));
     }
   }
+
+  // Fetch Skills from Active Resume
+  static Future<List<String>> fetchResumeSkills() async {
+    final session = await _sessionService.getSession();
+    final token = session['token'];
+    final usn = session['usn'];
+
+    print('DEBUG: Fetch resume skills - Token: ${token != null ? '[HIDDEN]' : null}, USN: $usn, Token length: ${token?.length ?? 0}');
+
+    if (token == null || usn == null) {
+      print('DEBUG: No session for skills fetch');
+      throw Exception('Not logged in');
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('${dotenv.env['API_URL']}/api/resume/skills'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 30), onTimeout: () {
+        throw Exception('Request timed out');
+      });
+
+      print('DEBUG: Skills fetch response: ${response.statusCode}, ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return List<String>.from(data['skills'] ?? []);
+      } else if (response.statusCode == 404) {
+        print('DEBUG: No active resume found: ${response.body}');
+        throw Exception('No active resume found');
+      } else {
+        print('DEBUG: Skills fetch failed: ${response.body}');
+        final errorMessage = jsonDecode(response.body)['message'] ?? 'Failed to fetch skills';
+        if (errorMessage == 'Invalid token') {
+          print('DEBUG: Invalid token detected; clearing session');
+          await _sessionService.clearSession();
+        }
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      print('DEBUG: Skills fetch error: $e');
+      throw Exception(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
 }

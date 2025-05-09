@@ -26,6 +26,7 @@ dependencies:
   syncfusion_flutter_pdfviewer: ^29.1.40
   crypto: ^3.0.3
   open_file: ^3.2.1
+  google_fonts: ^6.1.0
 
 dev_dependencies:
   flutter_test:

@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const Resume = require('../models/Resume');
-const {authenticate} = require('../middleware/authenticate');
+const { authenticate } = require('../middleware/authenticate');
 const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
+const pdfParse = require('pdf-parse');
 
-const uploadDir = path.join(__dirname, '../public/uploads/resumes');
+const uploadDir = path.join(__dirname, '../uploads/resumes');
 const MAX_RESUMES = 3;
 const MAX_FILE_SIZE = 7.5 * 1024 * 1024; // 7.5MB
 
@@ -21,6 +22,89 @@ async function ensureUploadDir() {
 }
 ensureUploadDir();
 
+// Parse skills from active resume
+router.get('/skills', authenticate, async (req, res) => {
+  try {
+    const usn = req.user.usn;
+    console.log(`DEBUG: Fetching skills for USN: ${usn}`);
+
+    const resume = await Resume.findOne({ usn, isActive: true });
+    if (!resume) {
+      console.log(`DEBUG: No active resume found for USN: ${usn}`);
+      return res.status(404).json({ message: 'No active resume found' });
+    }
+
+    const absolutePath = path.join(__dirname, '../uploads', resume.filePath);
+    try {
+      await fs.access(absolutePath);
+    } catch (err) {
+      console.error(`DEBUG: Resume file not found: ${absolutePath}`);
+      return res.status(404).json({ message: 'Resume file not found on server' });
+    }
+
+    const pdfBuffer = await fs.readFile(absolutePath);
+    const data = await pdfParse(pdfBuffer);
+    const text = data.text.toLowerCase();
+
+    console.log(`DEBUG: Extracted text length: ${text.length} characters`);
+
+    const commonSkills = [
+      'java', 'python', 'sql', 'c++', 'javascript', 'html', 'css', 'react', 'angular', 'node.js',
+      'mongodb', 'mysql', 'postgresql', 'aws', 'azure', 'docker', 'kubernetes', 'git', 'jenkins',
+      'typescript', 'php', 'ruby', 'go', 'swift', 'kotlin', 'r', 'matlab', 'tensorflow', 'pytorch',
+      'linux', 'bash', 'rest api', 'graphql', 'django', 'flask', 'spring', 'hibernate', 'c#', '.net',
+      'flutter', 'dart', 'android', 'ios', 'machine learning', 'data analysis', 'cloud computing',
+      'big data', 'hadoop', 'spark', 'tableau', 'power bi', 'excel', 'vba', 'cybersecurity',
+      'networking', 'blockchain', 'solidity', 'embedded systems', 'vhdl', 'verilog', 'arduino'
+    ];
+
+    const skills = [];
+
+    // 1. Look for "Skills" or related section
+    const skillsSectionRegex = /(?:skills|technical skills|key skills|core competencies|technologies|proficiencies)\s*[:\-]?\s*([\s\S]*?)(?=\n\s*\n|\n[A-Z]|\Z)/i;
+    const sectionMatch = text.match(skillsSectionRegex);
+    if (sectionMatch && sectionMatch[1]) {
+      const sectionText = sectionMatch[1].replace(/\n/g, ' ').trim();
+      console.log(`DEBUG: Found skills section: ${sectionText.substring(0, 100)}...`);
+
+      // Handle comma-separated, semicolon-separated, or bullet points
+      const potentialSkills = sectionText.split(/[,;]\s*|\s+and\s+|[-•*]\s+/).map(s => s.trim()).filter(s => s);
+      for (const skill of potentialSkills) {
+        const matchedSkill = commonSkills.find(cs => skill.toLowerCase().includes(cs));
+        if (matchedSkill && !skills.includes(matchedSkill)) {
+          skills.push(matchedSkill);
+        }
+      }
+    }
+
+    // 2. Scan entire text for skills (fallback)
+    if (skills.length === 0) {
+      console.log(`DEBUG: No skills section found; scanning entire text`);
+      for (const skill of commonSkills) {
+        const skillRegex = new RegExp(`\\b${skill}\\b`, 'i');
+        if (skillRegex.test(text) && !skills.includes(skill)) {
+          skills.push(skill);
+        }
+      }
+    }
+
+    // 3. Clean up skills (e.g., remove duplicates, handle special cases)
+    if (skills.includes('c++') && skills.includes('c')) {
+      skills.splice(skills.indexOf('c'), 1);
+    }
+    if (skills.includes('node.js') && skills.includes('node')) {
+      skills.splice(skills.indexOf('node'), 1);
+    }
+
+    console.log(`DEBUG: Extracted skills for USN ${usn}: ${skills.join(', ')}`);
+    res.status(200).json({ skills });
+  } catch (error) {
+    console.error(`DEBUG: Error parsing skills: ${error.message}`);
+    res.status(500).json({ message: `Server error: ${error.message}` });
+  }
+});
+
+// Upload custom resume
 router.post('/custom', authenticate, async (req, res) => {
   try {
     const { usn, pdfData, originalFileName } = req.body;
@@ -95,7 +179,7 @@ router.post('/custom', authenticate, async (req, res) => {
   }
 });
 
-
+// Set resume as active
 router.put('/:id/active', authenticate, async (req, res) => {
   try {
     const resumeId = req.params.id;
@@ -120,6 +204,7 @@ router.put('/:id/active', authenticate, async (req, res) => {
   }
 });
 
+// Fetch all resumes
 router.get('/', authenticate, async (req, res) => {
   try {
     const usn = req.user.usn;
@@ -133,6 +218,7 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
+// Delete a resume
 router.delete('/:id', authenticate, async (req, res) => {
   try {
     const resumeId = req.params.id;
@@ -145,7 +231,7 @@ router.delete('/:id', authenticate, async (req, res) => {
       return res.status(404).json({ message: 'Resume not found' });
     }
 
-    const absolutePath = path.join(__dirname, '../public', resume.filePath);
+    const absolutePath = path.join(__dirname, '../uploads', resume.filePath);
     try {
       await fs.access(absolutePath);
       await fs.unlink(absolutePath);
